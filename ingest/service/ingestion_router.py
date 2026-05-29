@@ -1,12 +1,14 @@
 """Ingestion API endpoints for the NFL ingestion system."""
 
 import asyncio
+import os
 import uuid
 import logging
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from ingest.db_writer import PgDBWriter
 from ingest.engine import IngestionEngine
 from ingest.espn.client import ESPNClient
+from ingest.espn.mock_client import MockESPNClient
 from ingest.espn.transformer import ESPNTransformer
 from ingest.service.app import POOL
 from ingest.service.status_store import IngestionStatusStore, TaskStatus
@@ -22,7 +24,7 @@ def get_ingestion_engine() -> IngestionEngine:
     if not POOL:
         raise RuntimeError("Database pool not initialized. Ensure app is running.")
     
-    api_provider = ESPNClient()
+    api_provider = MockESPNClient() if os.getenv("MOCK_ESPN") == "true" else ESPNClient()
     transformer = ESPNTransformer()
     db_writer = PgDBWriter(POOL)
     
@@ -43,14 +45,27 @@ async def ingest_single_game(
     status_store.create_task(task_id)
     
     async def run_ingestion():
-        engine = get_ingestion_engine()
+        logger.info(f"[Worker] Starting task {task_id}")
+        with open('/tmp/task.log', 'a') as f:
+            f.write(f'Worker started {task_id}\n')
         try:
+            engine = get_ingestion_engine()
+            logger.info(f"[Worker] Engine created for task {task_id}")
+            with open('/tmp/task.log', 'a') as f:
+                f.write(f'Engine created {task_id}\n')
             game_id = await engine.process_game(event_id)
+            logger.info(f"[Worker] Finished task {task_id} with game_id {game_id}")
+            with open('/tmp/task.log', 'a') as f:
+                f.write(f'Finished task {task_id}\n')
             if game_id:
                 status_store.complete_task(task_id)
             else:
                 status_store.fail_task(task_id, "No data found for game")
         except Exception as e:
+            logger.error(f"[Worker] Task {task_id} failed: {e}")
+            import traceback
+            with open('/tmp/task.log', 'a') as f:
+                f.write(f'Error: {e}\n{traceback.format_exc()}\n')
             status_store.fail_task(task_id, str(e))
 
     # Run in background
