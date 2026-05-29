@@ -1,0 +1,34 @@
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "not-needed",
+    "ANTHROPIC_BASE_URL": "http://localhost:11434",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "qwen3.5:9b",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "qwen3.5:27b",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "qwen3.6",
+    "ANTHROPIC_MODEL": "qwen3.6",
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "-1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "131072",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "85"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import psycopg2.extensions; print\\([x for x in dir\\(psycopg2.extensions\\) if 'cursor' in x.lower\\(\\)]\\)\")",
+      "Bash(python season_ingest.py --counts)",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import psycopg2; conn = psycopg2.connect\\(host='localhost', database='nfl_fantasy', user='postgres', password='owenethanTKD'\\); print\\('SUCCESS'\\); conn.close\\(\\)\")",
+      "Bash(python season_ingest.py --season 2024 --counts)",
+      "Bash(python season_ingest.py --game-id 401772988 --counts)",
+      "Bash(python season_ingest.py --season 2025 --counts)",
+      "Bash(python season_ingest.py --season 2026 --counts)",
+      "Bash(python season_ingest.py --season 2025)",
+      "Bash(python season_ingest.py --help)",
+      "Bash(python season_ingest.py --season 2026)",
+      "Bash(python season_ingest.py --season 2025 --debug)"
+    ]
+  },
+  "model": "qwen3-coder:30b",
+  "disabledMcpjsonServers": [
+    "serena"
+  ]
+}

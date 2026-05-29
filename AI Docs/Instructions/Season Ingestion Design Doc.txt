@@ -1,0 +1,78 @@
+To download all stats for a specific season using the ESPN API, you must implement a structured, multi-phased ingestion engine. This plan follows the "Base Atom" philosophy, ensuring you collect raw counting stats that can be aggregated later without losing data integrity.  
+
+Season Ingestion Development Plan
+Phase 1: Seasonal Discovery
+
+Before you can pull stats, you must identify every game that occurred in the season. ESPN organizes the NFL season into "types" (Preseason = 1, Regular Season = 2, Postseason = 3).
+
+    Logic: Loop through every week (1–18 for regular season) and every season type.
+
+    Endpoint: [http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=](http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=){YYYY}&week={WW}&type={T}
+
+      
+
+Action:
+
+    Parse the events[] array.  
+
+Store the id (Game ID) for every game found.  
+
+Populate your games dimension table with the date, home/away team IDs, and final status.  
+
+Phase 2: Granular Extraction
+
+Once you have a list of Game IDs for the season, you must iterate through each ID to pull the box score.  
+
+    Endpoint: [http://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=](http://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=){gameId}
+
+      
+
+Action:
+
+    Teams: Navigate to boxscore.teams. Extract team-level atoms like possession time (convert to seconds) and third-down efficiency (split the "made/att" string).  
+
+Players: Navigate to boxscore.players. For every athlete listed, identify their stat categories (passing, rushing, etc.).  
+
+Phase 3: The Mapping Engine
+
+This is the most critical technical step. ESPN returns stats as a list of strings, so your code must "align" them using the provided labels.  
+
+    Label Indexing:
+
+        Locate the labels array for a category (e.g., ["CP/ATT", "YDS", "TD"]).  
+
+Find the index of the specific stat you need (e.g., "YDS" is at index 1).  
+
+Retrieve the value from the same index in the athlete.stats array (e.g., "250").  
+
+Type Casting: Convert all string values from the API into their proper database formats (Integers for yards/counts, Numeric for sacks).  
+
+Technical Execution Summary
+Task	Endpoint / Source	Transformation Requirement
+Get Game List	/scoreboard	
+
+Filter by year and week; extract eventIds.  
+
+Update Rosters	/summary	
+
+Extract new external_id values from boxscore.players to keep the players table current.  
+
+Team Totals	boxscore.teams	
+
+Convert possessionTime (string) to off_possession_secs (INT).  
+
+Player Atoms	boxscore.players	
+
+Split "C/ATT" into pass_comp and pass_att columns.  
+
+Scoring Breakdown	scoringPlays	
+
+Iterate and count types (Pass TD, Rush TD) to populate team_game_stats.  
+
+Operational Safety
+
+    Rate Limiting: Although this is a public API, introduce a small delay (e.g., 0.5 seconds) between game summary requests to avoid being flagged as a bot.
+
+    Upsert Logic: Use INSERT ... ON CONFLICT in your SQL. This allows you to re-run the season downloader without creating duplicate entries; it will simply update existing records with any stat corrections.  
+
+Validation: After a season download, run a query to sum player yards and compare them to team total yards. Any discrepancy indicates a mapping error or a missing player in your ingestion loop.  

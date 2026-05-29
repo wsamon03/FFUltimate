@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "serena": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "serena-slim@latest"
+      ],
+      "env": {}
+    }
+  }
+}

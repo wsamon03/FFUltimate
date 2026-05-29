@@ -1,0 +1,105 @@
+NFL DATABASE MASTER SPECIFICATION
+
+Architecture, Schema, and API Ingestion Engine
+1. PROJECT PHILOSOPHY
+
+    The "Base Atom" Principle: Store only raw, non-reducible counting statistics (e.g., yards, completions, solo tackles).  
+
+No Calculated Rates: Never store averages or rates (e.g., Yards Per Carry, Passer Rating) in the database. These must be calculated via SQL queries or application logic to ensure data integrity and prevent "stale" values.  
+
+Hybrid Model: Use standard relational columns for high-frequency stats and a JSONB metadata column for niche, non-aggregatable data (e.g., "Longest Reception").  
+
+2. DATABASE SCHEMA (POSTGRESQL)
+2.1 Dimensional Tables (Entities)
+SQL
+
+CREATE TABLE teams (
+    id SERIAL PRIMARY KEY,
+    abbr VARCHAR(5) UNIQUE, -- e.g., 'KC', 'SF'
+    full_name VARCHAR(100)
+);
+
+CREATE TABLE players (
+    id SERIAL PRIMARY KEY,
+    external_id VARCHAR(50) UNIQUE, -- ESPN Athlete ID
+    name VARCHAR(100),
+    position VARCHAR(10),
+    team_id INT REFERENCES teams(id)
+);
+
+CREATE TABLE games (
+    id SERIAL PRIMARY KEY,
+    espn_id VARCHAR(50) UNIQUE, -- ESPN Event ID
+    status VARCHAR(20), -- 'scheduled', 'live', 'final'
+    game_date TIMESTAMP,
+    home_team_id INT REFERENCES teams(id),
+    away_team_id INT REFERENCES teams(id)
+);
+
+2.2 Fact Tables (Performance Metrics)
+SQL
+
+-- Team Game Totals & Scoring
+CREATE TABLE team_game_stats (
+    id SERIAL PRIMARY KEY,
+    game_id INT REFERENCES games(id),
+    team_id INT REFERENCES teams(id),
+    pts_total INT, pts_q1 INT, pts_q2 INT, pts_q3 INT, pts_q4 INT, pts_ot INT,
+    td_pass INT, td_rush INT, td_ret INT, td_def INT,
+    off_first_downs INT, off_total_yds INT, off_plays INT, 
+    off_3rd_att INT, off_3rd_make INT,
+    off_redzone_att INT, off_redzone_td INT, 
+    off_possession_secs INT, -- MM:SS string converted to total seconds
+    def_sacks INT, def_int INT, 
+    total_turnovers INT, 
+    penalties_count INT, penalties_yds INT,
+    metadata JSONB
+);
+
+-- Granular Player Performance
+CREATE TABLE player_game_stats (
+    id SERIAL PRIMARY KEY,
+    player_id INT REFERENCES players(id),
+    game_id INT REFERENCES games(id),
+    -- Offense
+    pass_comp INT, pass_att INT, pass_yds INT, pass_td INT, pass_int INT, pass_sacked INT,
+    rush_att INT, rush_yds INT, rush_td INT,
+    rec_receptions INT, rec_targets INT, rec_yds INT, rec_td INT,
+    -- Defense (Solo/Assist atoms only)
+    def_solo INT, def_ast INT, def_sacks NUMERIC(3,1), def_tfl INT, 
+    def_pd INT, def_qb_hits INT, def_td INT, def_int INT,
+    -- Special Teams
+    ret_kick_no INT, ret_kick_yds INT, ret_kick_td INT, 
+    ret_punt_no INT, ret_punt_yds INT, ret_punt_td INT,
+    k_fg_make INT, k_fg_att INT, k_xp_make INT, k_xp_att INT,
+    p_no INT, p_yds INT, p_in20 INT, p_tb INT, p_fc INT, p_blk INT, p_long INT,
+    metadata JSONB, 
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+3. DATA POPULATION & API INTEGRATION
+3.1 Targeted ESPN API Endpoints
+
+    Discovery (Scoreboard): [http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard](http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard).  
+
+Extraction (Summary): [http://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=](http://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=){gameId}.  
+
+3.2 Ingestion Workflow
+
+    Poll Scoreboard: Fetch all id values (game IDs) from the events array.  
+
+Verify Dimensions: Upsert entries into teams, players, and games tables using the data found in header and boxscore.players.  
+
+Process Team Stats: Iterate through boxscore.teams[].statistics and map to the team_game_stats table.  
+
+Process Player Stats: For every athlete in boxscore.players, navigate to their category (e.g., passing), match the index in the labels array to the stats array index, and update player_game_stats.  
+
+3.3 Data Transformation Logic
+
+    Possession Time: Split the "MM:SS" string and calculate (minutes * 60) + seconds to store as an integer.  
+
+Conversions: Split strings like "5/12" into two distinct integer columns: off_3rd_make (5) and off_3rd_att (12).  
+
+Stat Index Mapping: ESPN returns stats as a simple list. You must check the labels array (e.g., ["CP/ATT", "YDS", "TD"]) to ensure you are pulling the correct index for your specific database column.  
+
+Sacks: Cast "SACK" strings into Numeric values to properly record half-sacks (e.g., 0.5).  

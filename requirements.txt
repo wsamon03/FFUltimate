@@ -1,0 +1,8 @@
+requests>=2.31.0
+psycopg2-binary>=2.9.9
+python-dotenv>=1.0.0
+tqdm>=4.66.0  # Progress bar for batch processing
+asyncpg>=0.29.0  # High-performance async Postgres driver
+fastapi[standard]>=0.100.0  # For background tasks
+celery[redis]>=5.3.0  # For async task queue (alternative to background tasks)
+redis>=5.0.0
