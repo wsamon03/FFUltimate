@@ -44,4 +44,9 @@ Thumbs.db
 *.swp
 *.swo
 *~
-.env
+
+# Environment backups & Logs
+.env.bak
+.env.*.bak
+*.log
+logs/
