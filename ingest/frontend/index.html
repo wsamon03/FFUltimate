@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>nflDash | Ingestion & Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" x-cloak></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter", "sans-serif"] },
+            colors: {
+              primary: "#3b82f6",
+              secondary: "#64748b",
+              surface: "#0f172a",
+              surfaceHover: "#1e293b",
+              border: "#1e293b",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      [x-cloak] { display: none !important; }
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #0f172a; }
+      ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #475569; }
+      .glass-panel {
+        background: rgba(30, 41, 59, 0.4);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(51, 65, 85, 0.5);
+      }
+      .loading-dot {
+        animation: bounce 1.4s infinite ease-in-out both;
+      }
+      @keyframes bounce {
+        0%, 80%, 100% { transform: scale(0); }
+        40% { transform: scale(1); }
+      }
+    </style>
+  </head>
+
+  <body class="bg-slate-950 text-slate-200 font-sans min-h-screen flex overflow-hidden" x-data="nflApp()">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="w-64 bg-slate-900 border-r border-border flex flex-col h-screen shrink-0 transition-all z-10"
+           :class="sidebarOpen ? 'translate-x-0' : '-translate-x-64 fixed lg:relative lg:translate-x-0'">
+      <div class="p-6 border-b border-border flex items-center gap-3">
+        <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+          <i data-lucide="zap" class="text-white w-5 h-5"></i>
+        </div>
+        <h1 class="text-lg font-bold tracking-tight text-white">nflDash</h1>
+        <button @click="sidebarOpen = false" class="lg:hidden ml-auto text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <nav class="p-4 flex-1 space-y-1">
+        <template x-for="p in tabs" :key="p.id">
+          <button @click="activeTab = p.id"
+                  class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 hover:bg-surfaceHover"
+                  :class="activeTab === p.id ? 'bg-primary/10 text-primary shadow-sm shadow-primary/10' : 'text-slate-400 hover:text-white'">
+            <i :data-lucide="p.icon" class="w-5 h-5"></i>
+            <span x-text="p.name"></span>
+          </button>
+        </template>
+      </nav>
+
+      <div class="p-4 border-t border-border">
+        <button @click="showConfig = !showConfig" class="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium rounded-lg text-slate-400 hover:bg-surfaceHover hover:text-white transition-all">
+          <i data-lucide="settings" class="w-5 h-5"></i>
+          <span>API Settings</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <!-- Top Header -->
+      <header class="h-16 border-b border-border bg-surface/50 backdrop-blur flex items-center justify-between px-6 shrink-0">
+        <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden text-slate-400 hover:text-white">
+          <i data-lucide="menu" class="w-6 h-6"></i>
+        </button>
+        <div class="flex items-center gap-4 ml-auto">
+          <div x-show="activeTab === 'ingest'" x-transition>
+            <span x-show="loadingTask" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20">
+              <div class="flex gap-1">
+                <div class="loading-dot w-1.5 h-1.5 bg-primary rounded-full"></div>
+                <div class="loading-dot w-1.5 h-1.5 bg-primary rounded-full" style="animation-delay: 0.2s"></div>
+                <div class="loading-dot w-1.5 h-1.5 bg-primary rounded-full" style="animation-delay: 0.4s"></div>
+              </div>
+              <span>Processing Task</span>
+            </span>
+          </div>
+          <span class="text-xs text-slate-500 font-mono">v1.1.0</span>
+        </div>
+      </header>
+
+      <!-- Scrollable Content -->
+      <div class="flex-1 overflow-auto p-6">
+        
+        <!-- Settings Config -->
+        <div x-show="showConfig" x-transition.opacity.duration.300ms class="mb-6 glass-panel rounded-xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-white">API Configuration</h3>
+            <button @click="showConfig = false" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button @click="testConnection()" :disabled="testingConnection" :class="testingConnection ? 'opacity-50 cursor-not-allowed' : 'hover:bg-surfaceHover'" class="flex items-center justify-center gap-2 px-4 py-2 bg-surface border border-border rounded-lg text-sm font-medium transition-all">
+              <i data-lucide="activity" class="w-4 h-4"></i>
+              <span x-text="testingConnection ? 'Testing...' : 'Test Connection'"></span>
+            </button>
+            <span x-show="connectionStatus" :class="connectionStatus === 'success' ? 'text-emerald-400' : 'text-red-400'" class="flex items-center gap-2 text-sm">
+              <i :data-lucide="connectionStatus === 'success' ? 'check-circle' : 'alert-circle'"></i>
+              API is <span x-text="connectionStatus === 'success' ? 'connected' : 'unreachable'"></span>
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-2">Ensure the BASE_URL in the script footer matches your running FastAPI instance.</p>
+        </div>
+
+        <!-- ================= INGEST TAB ================= -->
+        <div x-show="activeTab === 'ingest'" x-transition:enter="transition ease-out duration-200">
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Ingestion Controls -->
+            <div class="lg:col-span-2 glass-panel rounded-xl p-6">
+              <div class="flex items-center gap-2 mb-5">
+                <i data-lucide="cloud-download" class="w-5 h-5 text-primary"></i>
+                <h2 class="text-lg font-semibold text-white">Ingestion Tasks</h2>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button @click="createTask('game')" class="group relative overflow-hidden p-4 bg-surface border border-border rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all text-left">
+                  <div class="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center mb-3 group-hover:bg-primary/20 group-hover:text-primary transition-all">
+                    <i data-lucide="football" class="w-5 h-5"></i>
+                  </div>
+                  <h3 class="text-sm font-semibold text-white">Single Game</h3>
+                  <p class="text-xs text-slate-400 mt-1">Ingest by ESPN event ID</p>
+                  <input x-model="inputs.game" placeholder="ESPN event ID" class="w-full mt-3 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs focus:outline-none focus:border-primary/50 transition-colors" />
+                </button>
+
+                <button @click="createTask('week')" class="group relative overflow-hidden p-4 bg-surface border border-border rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all text-left">
+                  <div class="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center mb-3 group-hover:bg-primary/20 group-hover:text-primary transition-all">
+                    <i data-lucide="calendar" class="w-5 h-5"></i>
+                  </div>
+                  <h3 class="text-sm font-semibold text-white">Weekly</h3>
+                  <p class="text-xs text-slate-400 mt-1">Ingest a full week</p>
+                  <div class="mt-3 grid grid-cols-2 gap-2">
+                    <input x-model="inputs.week.year" type="number" placeholder="Year" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs focus:outline-none focus:border-primary/50 transition-colors" />
+                    <input x-model="inputs.week.week" type="number" placeholder="Week" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs focus:outline-none focus:border-primary/50 transition-colors" />
+                  </div>
+                </button>
+
+                <button @click="createTask('season')" class="group relative overflow-hidden p-4 bg-surface border border-border rounded-xl hover:border-primary/50 hover:bg-primary/5 transition-all text-left">
+                  <div class="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center mb-3 group-hover:bg-primary/20 group-hover:text-primary transition-all">
+                    <i data-lucide="trophy" class="w-5 h-5"></i>
+                  </div>
+                  <h3 class="text-sm font-semibold text-white">Season</h3>
+                  <p class="text-xs text-slate-400 mt-1">Ingest a full season</p>
+                  <input x-model="inputs.season.year" type="number" placeholder="Season Year" class="w-full mt-3 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs focus:outline-none focus:border-primary/50 transition-colors" />
+                </button>
+              </div>
+            </div>
+
+            <!-- Task Status Panel -->
+            <div class="glass-panel rounded-xl p-6 flex flex-col h-full max-h-full">
+              <div class="flex items-center gap-2 mb-5">
+                <i data-lucide="list-todo" class="w-5 h-5 text-amber-400"></i>
+                <h2 class="text-lg font-semibold text-white">Active Tasks</h2>
+              </div>
+              <div class="flex-1 overflow-auto space-y-3 pr-2 custom-scroll">
+                <template x-for="task in tasks" :key="task.id">
+                  <div class="bg-surface/50 border border-border rounded-lg p-3 text-sm">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="font-mono text-xs text-slate-400" x-text="task.id.toString().substring(0, 8) + '...'"></span>
+                      <span class="uppercase text-[10px] font-bold px-2 py-0.5 rounded border"
+                        :class="{
+                          'text-emerald-400 border-emerald-400/20 bg-emerald-400/10': task.status === 'completed',
+                          'text-red-400 border-red-400/20 bg-red-400/10': task.status === 'failed',
+                          'text-amber-400 border-amber-400/20 bg-amber-400/10': task.status === 'running',
+                          'text-blue-400 border-blue-400/20 bg-blue-400/10': task.status === 'queued'
+                        }"
+                        x-text="task.status"></span>
+                    </div>
+                    <div class="text-xs text-slate-500 mb-2" x-text="'Type: ' + task.type.toUpperCase()"></div>
+                    <div x-show="task.progress && task.progress.total" class="w-full bg-slate-800 rounded-full h-1.5 mb-1 overflow-hidden">
+                      <div class="bg-primary h-1.5 rounded-full" :style="'width: ' + (task.progress.ingested + task.progress.failed) / (task.progress.total || 1) * 100 + '%'"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-400">
+                      <span x-text="(task.progress.ingested || 0) + ' ingested'"></span>
+                      <span x-text="(task.progress.failed || 0) + ' failed'" :class="task.progress.failed > 0 ? 'text-red-400' : ''"></span>
+                    </div>
+                  </div>
+                </template>
+                <p x-show="tasks.length === 0" class="text-slate-500 text-sm text-center py-8 italic opacity-50"> No running tasks. Start an ingestion to see progress here.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TEAMS TAB ================= -->
+        <div x-show="activeTab === 'teams'" x-transition:enter="transition ease-out duration-200">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-white">League Teams</h2>
+            <button @click="fetchTeams()" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+              <i data-lucide="rotate-cw" class="w-4 h-4"></i> Refresh
+            </button>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <template x-for="team in teamsList" :key="team.id">
+              <div class="glass-panel p-5 rounded-xl hover:bg-surfaceHover transition-all cursor-pointer group border border-transparent hover:border-primary/30">
+                <div class="flex items-center justify-center w-12 h-12 bg-slate-800 rounded-full text-secondary font-bold text-lg mb-3 group-hover:scale-110 transition-transform">
+                  <span x-text="team.abbr"></span>
+                </div>
+                <h3 class="text-white font-semibold text-center" x-text="team.full_name"></h3>
+                <div class="text-slate-500 text-xs text-center font-mono mt-1" x-text="'ESPN: ' + team.espn_id"></div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- ================= GAMES TAB ================= -->
+        <div x-show="activeTab === 'games'" x-transition:enter="transition ease-out duration-200">
+          <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+            <h2 class="text-2xl font-bold text-white">Schedule Archive</h2>
+            <div class="flex gap-2">
+              <input x-model="filters.dateStart" type="date" class="bg-surface border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
+              <input x-model="filters.dateEnd" type="date" class="bg-surface border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
+            </div>
+          </div>
+          <div class="glass-panel rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm text-slate-400">
+                <thead class="bg-surface text-slate-200 uppercase font-medium text-xs">
+                  <tr>
+                    <th class="px-6 py-4">Date</th>
+                    <th class="px-6 py-4">Away</th>
+                    <th class="px-6 py-4">Score</th>
+                    <th class="px-6 py-4">Home</th>
+                    <th class="px-6 py-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                  <template x-for="game in gameList" :key="game.id">
+                    <tr class="hover:bg-surfaceHover/50 transition-colors cursor-pointer" @click="activeTab = 'stats'; loadGameStats(game.id)">
+                      <td class="px-6 py-4" x-text="game.game_date"></td>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center gap-2">
+                          <span class="font-mono font-bold text-blue-400" x-text="game.away_abbr"></span>
+                          <span x-text="game.away_name"></span>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 text-center font-mono font-bold text-white">VS</td>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center justify-end gap-2 text-right">
+                          <span x-text="game.home_name"></span>
+                          <span class="font-mono font-bold text-blue-400" x-text="game.home_abbr"></span>
+                        </div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="px-2 py-1 bg-slate-800 rounded text-xs whitespace-nowrap"
+                          :class="game.status_code === 'FINAL' ? 'bg-emerald-900/30 text-emerald-400' : 'bg-amber-900/30 text-amber-400'"
+                          x-text="game.status_code"></span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= STATS TAB ================= -->
+        <div x-show="activeTab === 'stats'" x-transition:enter="transition ease-out duration-200">
+          
+          <div x-show="!viewStatsMode" class="flex items-center gap-4 mb-8 p-6 glass-panel rounded-xl">
+            <div class="text-4xl text-primary/50"><i data-lucide="bar-chart-2"></i></div>
+            <div>
+              <h2 class="text-2xl font-bold text-white">Analytics Lab</h2>
+              <p class="text-slate-400 text-sm">Select a category below to view data or browse the Schedule tab to see game stats.</p>
+            </div>
+          </div>
+
+          <template x-if="viewStatsMode">
+            <div>
+              <!-- Breadcrumbs / Back -->
+              <button @click="viewStatsMode = null" class="mb-4 flex items-center gap-2 text-slate-400 hover:text-white text-sm">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Dashboard
+              </button>
+
+              <!-- Leaderboard Sub-Selector -->
+              <div x-show="viewStatsMode === 'leaderboard' && statsData" class="mb-6 sticky top-0 z-10 glass-panel p-4 rounded-xl border-l-4 border-primary">
+                <div class="flex items-center justify-between mb-2">
+                  <h3 class="text-lg font-semibold text-white" x-text="'Top Players: ' + (statsData[0]?.home_name || 'Game') + ' vs ' + (statsData[0]?.away_name || 'Game')"></h3>
+                  <div class="flex gap-2">
+                    <select x-model="statsFilters.category" @change="loadLeaderboard(statsFilters.selectedGame)" class="bg-surface border border-border text-white rounded px-3 py-1 text-sm focus:outline-none">
+                      <option value="passing">Passing</option>
+                      <option value="rushing">Rushing</option>
+                      <option value="receiving">Receiving</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="text-xs text-slate-400 mb-4">Leaderboard for <span class="text-white font-bold uppercase" x-text="statsFilters.category"></span></div>
+                
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-sm">
+                    <thead class="text-slate-500 border-b border-border">
+                      <tr>
+                        <th class="pb-2 font-medium">Player</th>
+                        <th class="pb-2 font-medium">Team</th>
+                        <template x-if="statsFilters.category === 'passing'">
+                          <th class="pb-2 font-medium text-right text-primary">YDS</th>
+                          <th class="pb-2 font-medium text-right">TD</th>
+                          <th class="pb-2 font-medium text-right">ATT</th>
+                        </template>
+                        <template x-if="statsFilters.category === 'rushing'">
+                          <th class="pb-2 font-medium text-right text-primary">YDS</th>
+                          <th class="pb-2 font-medium text-right">TD</th>
+                          <th class="pb-2 font-medium text-right text-xs">FGR</th>
+                        </template>
+                        <template x-if="statsFilters.category === 'receiving'">
+                          <th class="pb-2 font-medium text-right text-primary">REC</th>
+                          <th class="pb-2 font-medium text-right text-primary">YDS</th>
+                        </template>
+                      </tr>
+                    </thead>
+                    <tbody class="text-white divide-y divide-border">
+                      <template x-for="(row, index) in statsData" :key="index">
+                        <tr class="hover:bg-surfaceHover/50">
+                          <td class="py-3 font-bold" x-text="row.player_name"></td>
+                          <td class="py-3" x-text="row.team_name"></td>
+                          <template x-if="statsFilters.category === 'passing'">
+                            <td class="py-3 text-right font-mono text-primary" x-text="row.pass_yds"></td>
+                            <td class="py-3 text-right font-mono" x-text="row.pass_td"></td>
+                            <td class="py-3 text-right font-mono text-slate-500" x-text="row.pass_att"></td>
+                          </template>
+                          <template x-if="statsFilters.category === 'rushing'">
+                            <td class="py-3 text-right font-mono text-primary" x-text="row.rush_yds"></td>
+                            <td class="py-3 text-right font-mono" x-text="row.rush_td"></td>
+                            <td class="py-3 text-right font-mono text-slate-500" x-text="(row.rush_att ? (row.rush_td / row.rush_att).toFixed(2) : '0.00')"></td>
+                          </template>
+                          <template x-if="statsFilters.category === 'receiving'">
+                            <td class="py-3 text-right font-mono text-primary" x-text="row.rec_receptions"></td>
+                            <td class="py-3 text-right font-mono text-primary" x-text="row.rec_yds"></td>
+                          </template>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Generic Player Stats View -->
+              <div x-show="viewStatsMode === 'player' && statsData" class="glass-panel rounded-xl overflow-hidden">
+                <div class="p-6 border-b border-border">
+                  <h3 class="text-xl font-bold text-white" x-text="statsData[0]?.player_name"></h3>
+                  <div class="flex gap-4 mt-2 text-sm text-slate-400">
+                    <span class="flex items-center gap-2"><i data-lucide="user" class="w-3 h-3"></i> ID: <span class="text-slate-200 font-mono" x-text="statsData[0]?.player_espn_id || 'N/A'"></span></span>
+                    <span class="flex items-center gap-2"><i data-lucide="shield" class="w-3 h-3"></i> Team: <span class="text-slate-200" x-text="statsData[0]?.team_name"></span></span>
+                    <span class="flex items-center gap-2"><i data-lucide="type" class="w-3 h-3"></i> Pos: <span class="text-slate-200" x-text="statsData[0]?.position_code"></span></span>
+                  </div>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-sm">
+                    <thead class="bg-surface text-slate-500 uppercase text-xs">
+                      <tr>
+                        <th class="px-6 py-3">Date</th>
+                        <th class="px-6 py-3">Opponent</th>
+                        <th class="px-6 py-3 text-center text-primary">Pass Yds</th>
+                        <th class="px-6 py-3 text-center text-primary">Rush Yds</th>
+                        <th class="px-6 py-3 text-center text-primary">Rec Yds</th>
+                        <th class="px-6 py-3 text-center text-emerald-400">Fantasy</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border bg-slate-900/50">
+                      <template x-for="row in statsData" :key="row.id">
+                        <tr class="hover:bg-surfaceHover/30">
+                          <td class="px-6 py-3 text-white" x-text="row.game_date"></td>
+                          <td class="px-6 py-3 text-slate-400" x-text="row.team_name"></td>
+                          <td class="px-6 py-3 text-right font-mono" x-text="row.pass_yds"></td>
+                          <td class="px-6 py-3 text-right font-mono" x-text="row.rush_yds"></td>
+                          <td class="px-6 py-3 text-right font-mono" x-text="row.rec_yds"></td>
+                          <td class="px-6 py-3 text-right font-mono font-bold text-emerald-400" x-text="row.fantasy_points"></td>
+                        </tr>
+                      </template>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div x-show="!statsData && viewStatsMode" class="text-center py-20">
+                <i data-lucide="search-x" class="w-12 h-12 mx-auto text-slate-600 mb-4"></i>
+                <p class="text-slate-400">No data available for this selection.</p>
+                <p class="text-slate-500 text-sm mt-2">Ensure data has been ingested first.</p>
+              </div>
+
+            </div>
+          </template>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- APP DATA AND LOGIC -->
+    <script>
+      // ==========================================
+      // CONFIGURATION - UPDATE THIS URL
+      // ==========================================
+      // Ensure your FastAPI server (uvicorn) is running and CORS allows localhost:*
+      const BASE_URL = "http://localhost:8000"; 
+      // ==========================================
+
+      function nflApp() {
+        return {
+          sidebarOpen: false,
+          activeTab: 'ingest',
+          showConfig: false,
+          testingConnection: false,
+          connectionStatus: null,
+          
+          // Data Stores
+          tasks: [],
+          teamsList: [],
+          gameList: [],
+          statsData: null,
+          
+          inputs: {
+            game: '',
+            week: { year: '2024' },
+            season: { year: '2022' }
+          },
+          
+          filters: {
+            dateStart: '',
+            dateEnd: '',
+            category: 'passing'
+          },
+
+          statsFilters: {
+            category: 'passing',
+            selectedGame: null
+          },
+
+          viewStatsMode: null,
+          
+          tabs: [
+            { id: 'ingest', name: 'Ingestion', icon: 'zap' },
+            { id: 'teams', name: 'Teams', icon: 'users' },
+            { id: 'games', name: 'Games', icon: 'calendar' },
+            { id: 'stats', name: 'Stats & Fantasy', icon: 'bar-chart-2' },
+          ],
+
+          init() {
+            this.fetchTeams();
+            this.fetchGames();
+            setInterval(() => this.refreshTasks(), 3000); // Auto-poll active tasks
+          },
+
+          // --- Ingestion Logic ---
+          async createTask(type) {
+            let url;
+            
+            if (type === 'game') {
+              if(!this.inputs.game) return alert("Please enter an Event ID");
+              url = `${BASE_URL}/api/ingest/game?event_id=${this.inputs.game}`;
+            } else if (type === 'week') {
+              if(!this.inputs.week.year || !this.inputs.week.week) return alert("Please enter Year and Week");
+              url = `${BASE_URL}/api/ingest/week?year=${this.inputs.week.year}&week=${this.inputs.week.week}`;
+            } else {
+              if(!this.inputs.season.year) return alert("Please enter a Season Year");
+              url = `${BASE_URL}/api/ingest/season?year=${this.inputs.season.year}`;
+            }
+
+            try {
+              this.loadingTask = true;
+              const res = await fetch(url, { method: 'POST' });
+              const data = await res.json();
+              
+              // Create a local task object for UI
+              const newTask = {
+                id: data.task_id,
+                type: type,
+                status: 'queued',
+                progress: { ingested: 0, failed: 0 }
+              };
+              
+              this.tasks.unshift(newTask);
+              this.checkStatus(data.task_id);
+            } catch (e) {
+              console.error(e);
+              alert("Could not reach API. Check console and CORS settings.");
+            } finally {
+              this.loadingTask = false;
+            }
+          },
+
+          async checkStatus(id) {
+            const task = this.tasks.find(t => t.id === id);
+            if(!task) return;
+
+            try {
+              const res = await fetch(`${BASE_URL}/api/ingest/status/${id}`);
+              const data = await res.json();
+              
+              // Update local state
+              task.status = data.status;
+              if (data.progress) {
+                task.progress = data.progress;
+              }
+              
+              if(task.status === 'completed' || task.status === 'failed') {
+                this.showConfig = true;
+                this.connectionStatus = task.status === 'completed' ? 'success' : 'error';
+              }
+
+            } catch (e) { /* Silent fail during refresh */ }
+          },
+
+          refreshTasks() {
+            if(this.tasks.length === 0) return;
+            this.tasks.forEach(t => {
+              if (t.status !== 'completed' && t.status !== 'failed') {
+                this.checkStatus(t.id);
+              } else {
+                  // Auto-remove completed tasks older than 30 seconds? 
+                  // For now let's just leave it to user to clear or refresh page.
+              }
+            });
+          },
+
+          // --- Data Fetching ---
+          async fetchTeams() {
+            try {
+              const res = await fetch(`${BASE_URL}/api/teams`);
+              this.teamsList = await res.json();
+            } catch (e) { console.error("Fetch Teams Error", e); }
+          },
+
+          async fetchGames() {
+            let url = `${BASE_URL}/api/games?`;
+            if(this.filters.dateStart) url += `date_start=${this.filters.dateStart}&`;
+            if(this.filters.dateEnd) url += `date_end=${this.filters.dateEnd}&`;
+            
+            try {
+              const res = await fetch(url);
+              this.gameList = await res.json();
+            } catch (e) { console.error("Fetch Games Error", e); }
+          },
+
+          async loadLeaderboard(id) {
+            if(!id) { this.viewStatsMode = null; return; }
+            this.viewStatsMode = 'leaderboard';
+            this.statsFilters.selectedGame = id;
+            this.loadStatsData(id, 'leaderboard', this.statsFilters.category);
+          },
+
+          async loadPlayerStats(id) {
+            if(!id) return;
+            this.viewStatsMode = 'player';
+            this.statsData = null;
+            
+            // Use the fantasy endpoint specifically for the nice table layout
+            const res = await fetch(`${BASE_URL}/fantasy/${id}`);
+            this.statsData = await res.json();
+          },
+
+          async loadGameStats(id) {
+            this.activeTab = 'stats';
+            this.filters.category = 'passing';
+            this.loadLeaderboard(id);
+          },
+
+          async loadStatsData(id, type, category) {
+            this.statsData = null;
+            const url = `${BASE_URL}/api/stats/leaderboard/${id}?category=${category}`;
+            const res = await fetch(url);
+            this.statsData = await res.json();
+          },
+          
+          async testConnection() {
+            this.testingConnection = true;
+            this.connectionStatus = null;
+            try {
+              const res = await fetch(`${BASE_URL}/api/teams`);
+              if(res.ok) {
+                this.connectionStatus = 'success';
+                this.fetchTeams();
+              }
+            } catch(e) { this.connectionStatus = 'error'; }
+            this.testingConnection = false;
+          }
+        }
+      }
+      // Initialize Icons after Alpine renders
+      document.addEventListener('alpine:init', () => lucide.createIcons());
+    </script>
+  </body>
+</html>
