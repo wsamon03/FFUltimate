@@ -13,7 +13,7 @@ def get_pool(request: Request) -> asyncpg.Pool:
     """Dependency to access the global asyncpg pool."""
     return request.app.state.pool
 
-@router.get("/teams")
+@router.get("/api/teams")
 async def get_teams(pool: asyncpg.Pool = Depends(get_pool)):
     """Get all teams."""
     async with pool.acquire() as conn:
