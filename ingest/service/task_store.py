@@ -30,12 +30,12 @@ class PersistentTaskStore:
         with open(self.path, 'w') as f:
             json.dump(data, f, indent=2)
 
-    def create_task(self, task_id: uuid.UUID) -> dict:
+    def create_task(self, task_id: uuid.UUID, task_type: str = "unknown") -> dict:
         tasks = self._load()
         tasks[str(task_id)] = {
             "id": str(task_id),
+            "type": task_type,
             "status": "queued",
-            "type": None,
             "progress": {"ingested": 0, "failed": 0},
             "error": None,
             "created_at": datetime.now().isoformat(),
@@ -52,14 +52,14 @@ class PersistentTaskStore:
             self._save(tasks)
         return tasks[str(task_id)]
 
-    def complete_task(self, task_id: uuid.UUID) -> dict:
-        return self.update_task(task_id, status="completed", progress=None)
+    def complete_task(self, task_id: uuid.UUID, total: int = 0) -> dict:
+        return self.update_task(task_id, status="completed", progress={"ingested": total, "failed": 0, "total": total})
 
     def fail_task(self, task_id: uuid.UUID, error: str) -> dict:
         return self.update_task(task_id, status="failed", error=error, progress=None)
 
-    def update_progress(self, task_id: uuid.UUID, ingested: int, failed: int) -> dict:
-        return self.update_task(task_id, progress={"ingested": ingested, "failed": failed})
+    def update_progress(self, task_id: uuid.UUID, ingested: int, failed: int, total: int = 0) -> dict:
+        return self.update_task(task_id, progress={"ingested": ingested, "failed": failed, "total": total})
 
     def get(self, task_id: uuid.UUID) -> Optional[dict]:
         tasks = self._load()
@@ -68,14 +68,5 @@ class PersistentTaskStore:
     def get_all(self) -> Dict:
         tasks = self._load()
         return {k: v for k, v in sorted(tasks.items(), key=lambda x: x[1].get('updated_at', ''), reverse=True)}
-
-    def clear_completed(self, older_than_minutes: int = 60):
-        tasks = self._load()
-        now = datetime.now()
-        for tid, task in list(tasks.items()):
-            created = datetime.fromisoformat(task.get('created_at'))
-            if (now - created).total_seconds() > older_than_minutes * 60 and task['status'] in ['completed', 'failed']:
-                del tasks[tid]
-        self._save(tasks)
 
 status_store = PersistentTaskStore()

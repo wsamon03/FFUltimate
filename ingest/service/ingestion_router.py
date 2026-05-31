@@ -11,7 +11,6 @@ from ingest.espn.client import ESPNClient
 from ingest.espn.mock_client import MockESPNClient
 from ingest.espn.transformer import ESPNTransformer
 from ingest.service.task_store import status_store
-from ingest.service.app import POOL as _POOL
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ async def ingest_single_game(
 ):
     """Ingest a single game by ESPN event ID. Returns immediately."""
     task_id = uuid.uuid4()
-    status_store.create_task(task_id)
+    status_store.create_task(task_id, "game")
     status_store.update_task(task_id, status="running")
     
     async def run_ingestion():
@@ -59,7 +58,7 @@ async def ingest_single_game(
             engine = get_ingestion_engine()
             game_id = await engine.process_game(event_id)
             if game_id:
-                status_store.complete_task(task_id)
+                status_store.complete_task(task_id, 1)
             else:
                 status_store.fail_task(task_id, "No data found for game")
         except Exception as e:
@@ -79,15 +78,15 @@ async def ingest_week(
 ):
     """Ingest all games for a specific week. Returns immediately."""
     task_id = uuid.uuid4()
-    status_store.create_task(task_id)
-    status_store.update_task(task_id, status="running", progress={"ingested": 0, "failed": 0})
+    status_store.create_task(task_id, "week")
+    status_store.update_task(task_id, status="running", progress={"ingested": 0, "failed": 0, "total": 0})
     
     async def run_week_ingestion():
         engine = get_ingestion_engine()
         try:
             processed, failed = await engine.process_week(str(year), week)
-            status_store.update_progress(task_id, processed, failed)
-            status_store.complete_task(task_id)
+            status_store.update_progress(task_id, processed, failed, processed)
+            status_store.complete_task(task_id, processed)
         except Exception as e:
             status_store.fail_task(task_id, str(e))
 
@@ -103,15 +102,15 @@ async def ingest_season(
 ):
     """Ingest an entire season. Returns immediately."""
     task_id = uuid.uuid4()
-    status_store.create_task(task_id)
-    status_store.update_task(task_id, status="running", progress={"ingested": 0, "failed": 0})
+    status_store.create_task(task_id, "season")
+    status_store.update_task(task_id, status="running", progress={"ingested": 0, "failed": 0, "total": 0})
     
     async def run_season_ingestion():
         engine = get_ingestion_engine()
         try:
             processed, failed = await engine.process_season(str(year), include_playoffs)
-            status_store.update_progress(task_id, processed, failed)
-            status_store.complete_task(task_id)
+            status_store.update_progress(task_id, processed, failed, processed)
+            status_store.complete_task(task_id, processed)
         except Exception as e:
             status_store.fail_task(task_id, str(e))
 
