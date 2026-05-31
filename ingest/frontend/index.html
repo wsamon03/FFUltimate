@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>nflDash | Ingestion & Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+    <script defer src="https://unpkg.com/lucide@latest"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js" x-cloak></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
@@ -417,6 +417,7 @@
       function nflApp() {
         return {
           sidebarOpen: false,
+          loadingTask: false,
           activeTab: 'ingest',
           showConfig: false,
           testingConnection: false,
@@ -477,59 +478,14 @@
 
             try {
               this.loadingTask = true;
-              const res = await fetch(url, { method: 'POST' });
-              const data = await res.json();
-              
-              // Create a local task object for UI
-              const newTask = {
-                id: data.task_id,
-                type: type,
-                status: 'queued',
-                progress: { ingested: 0, failed: 0 }
-              };
-              
-              this.tasks.unshift(newTask);
-              this.checkStatus(data.task_id);
+              await fetch(url, { method: 'POST' });
+              // UI updates automatically via refreshTasks() polling every 3s
             } catch (e) {
               console.error(e);
               alert("Could not reach API. Check console and CORS settings.");
             } finally {
               this.loadingTask = false;
             }
-          },
-
-          async checkStatus(id) {
-            const task = this.tasks.find(t => t.id === id);
-            if(!task) return;
-
-            try {
-              const res = await fetch(`${BASE_URL}/api/ingest/status/${id}`);
-              const data = await res.json();
-              
-              // Update local state
-              task.status = data.status;
-              if (data.progress) {
-                task.progress = data.progress;
-              }
-              
-              if(task.status === 'completed' || task.status === 'failed') {
-                this.showConfig = true;
-                this.connectionStatus = task.status === 'completed' ? 'success' : 'error';
-              }
-
-            } catch (e) { /* Silent fail during refresh */ }
-          },
-
-          refreshTasks() {
-            if(this.tasks.length === 0) return;
-            this.tasks.forEach(t => {
-              if (t.status !== 'completed' && t.status !== 'failed') {
-                this.checkStatus(t.id);
-              } else {
-                  // Auto-remove completed tasks older than 30 seconds? 
-                  // For now let's just leave it to user to clear or refresh page.
-              }
-            });
           },
 
           // --- Data Fetching ---

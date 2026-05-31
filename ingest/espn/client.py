@@ -34,7 +34,7 @@ class ESPNClient(APIProvider):
         """Fetch scoreboard for a given date (YYYY-MM-DD)."""
         logger.info(f"Fetching scoreboard for date={date}")
         params = {"date": date}
-        resp = requests.get(ESPN_SCOREBOARD_URL, headers=ESPN_HEADERS, params=params, timeout=30)
+        resp = await asyncio.to_thread(requests.get, ESPN_SCOREBOARD_URL, headers=ESPN_HEADERS, params=params, timeout=30)
         resp.raise_for_status()
         return resp.json()
 
@@ -42,7 +42,7 @@ class ESPNClient(APIProvider):
         """Fetch scoreboard for a specific season week (dates=year&week=N&type=T)."""
         logger.info(f"Fetching scoreboard for year={year}, week={week}, type={type_id}")
         params = {"dates": year, "week": str(week), "type": str(type_id)}
-        resp = requests.get(ESPN_SCOREBOARD_URL, headers=ESPN_HEADERS, params=params, timeout=30)
+        resp = await asyncio.to_thread(requests.get, ESPN_SCOREBOARD_URL, headers=ESPN_HEADERS, params=params, timeout=30)
         if resp.status_code in (403, 404):
             logger.debug(f"  Week {week}: API returned {resp.status_code} - skipping")
             return None
@@ -52,7 +52,7 @@ class ESPNClient(APIProvider):
     async def fetch_game_summary(self, event_id: str) -> Optional[dict]:
         """Fetch full game boxscore summary for a given event ID."""
         logger.debug(f"Fetching game summary for event={event_id}")
-        resp = requests.get(f"{ESPN_SUMMARY_URL}?event={event_id}", headers=ESPN_HEADERS, timeout=30)
+        resp = await asyncio.to_thread(requests.get, f"{ESPN_SUMMARY_URL}?event={event_id}", headers=ESPN_HEADERS, timeout=30)
         if resp.status_code == 200:
             data = resp.json()
             if isinstance(data, int):
