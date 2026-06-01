@@ -41,8 +41,9 @@ class IngestionEngine:
 
         # Transaction handling: Ensures data integrity for the entire game record
         game_id = None
+        conn = await self.pool.acquire()
         try:
-            async with self.pool.transaction():
+            async with conn.transaction():
                 # Upsert home team
                 home_id = await self.db_writer.upsert_team(
                     parsed_game.home_team.espn_id,
@@ -87,10 +88,8 @@ class IngestionEngine:
                     non_null = {k: v for k, v in player_stats.items() if k != "metadata" and v is not None}
                     if non_null:
                         await self.db_writer.upsert_player_game_stats(player_id, game_id, player_stats)
-                        
-        except Exception as e:
-            logger.error(f"Transaction failed for game {event_id}: {e}")
-            raise
+        finally:
+            await self.pool.release(conn)
 
         logger.info(f"Completed game {event_id} -> DB game_id={game_id}")
         return game_id
@@ -116,12 +115,35 @@ class IngestionEngine:
 
     async def process_week(self, year: str, week: int, type_id: int = 2) -> tuple[int, int]:
         """Ingest all games for a season week."""
-        raw = await self.api.fetch_scoreboard_by_week(year, week, type_id)
-        if not raw:
-            logger.info(f"No games for week {week}, year {year}")
-            return 0, 0
-        event_ids = _extract_ids(raw)
-        return await self.process_game_ids(event_ids)
+        try:
+            # Use the specific 'dates & week' ESPN endpoint which reliably returns 
+            # all events for that week at the top level of the JSON.
+            params = {"dates": int(year), "week": str(week)}
+            logger.info(f"Using ESPN API forYear={year} Week={week}")
+            
+            import requests
+            url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+            
+            loop = asyncio.get_running_loop()
+            sb = await loop.run_in_executor(None, lambda: requests.get(url, params=params, headers={"User-Agent": "Mozilla/5.0"}, timeout=30))
+            
+            if sb.status_code != 200:
+                logger.warning(f"Week endpoint failed for {year} W{week}: {sb.status_code}")
+                return 0, 0
+                
+            sb.json()
+            event_ids = [str(e["id"]) for e in sb.json().get("events", [])]
+            
+            if not event_ids:
+                logger.info(f"No games found for Year {year}, Week {week}")
+                return 0, 0
+                
+            logger.info(f"[{year} W{week}] Found {len(event_ids)} events.")
+            return await self.process_game_ids(event_ids)
+            
+        except Exception as e:
+            logger.error(f"Error in process_week: {e}")
+            return -1, -1
 
     async def process_season(self, year: str, include_playoffs: bool = False) -> tuple[int, int]:
         """Ingest entire season."""

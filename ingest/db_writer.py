@@ -71,6 +71,8 @@ class PgDBWriter:
         if game_date and game_date.tzinfo is not None:
             game_date = game_date.replace(tzinfo=None)
             
+        print(f'[DB_WRITER] Calling usp_upsert_game. game_date type: {type(game_date)}, val: {game_date}')
+        
         async with self.pool.acquire() as conn:
             await conn.execute(
                 "CALL usp_upsert_game($1, $2, $3, $4, $5, $6, $7)",
@@ -89,7 +91,7 @@ class PgDBWriter:
         """Upsert team game stats via stored procedure."""
         async with self.pool.acquire() as conn:
             await conn.execute(
-                "CALL usp_upsert_team_game_stats($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)",
+                "CALL usp_upsert_team_game_stats($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)",
                 game_id, team_id,
                 stats.get("pts_total"), stats.get("pts_q1"), stats.get("pts_q2"),
                 stats.get("pts_q3"), stats.get("pts_q4"), stats.get("pts_ot"),
@@ -108,7 +110,7 @@ class PgDBWriter:
         """Upsert player game stats via stored procedure."""
         async with self.pool.acquire() as conn:
             await conn.execute(
-                "CALL usp_upsert_player_game_stats($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39)",
+                "CALL usp_upsert_player_game_stats($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $41)",
                 player_id, game_id,
                 stats.get("pass_comp"), stats.get("pass_att"), stats.get("pass_yds"),
                 stats.get("pass_td"), stats.get("pass_int"), stats.get("pass_sacked"),
