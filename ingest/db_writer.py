@@ -73,11 +73,15 @@ class PgDBWriter:
             
         print(f'[DB_WRITER] Calling usp_upsert_game. game_date type: {type(game_date)}, val: {game_date}')
         
+        # Ensure numeric ESPN team IDs are passed as strings to prevent PostgreSQL type mismatch
+        home_id = str(home_espn_id)
+        away_id = str(away_espn_id)
+        
         async with self.pool.acquire() as conn:
             await conn.execute(
                 "CALL usp_upsert_game($1, $2, $3, $4, $5, $6, $7)",
                 espn_id, status_code, game_date,
-                home_espn_id, away_espn_id, week, season_year
+                home_id, away_id, week, season_year
             )
             row = await conn.fetchval(
                 "SELECT id FROM games WHERE espn_id = $1",
@@ -110,7 +114,7 @@ class PgDBWriter:
         """Upsert player game stats via stored procedure."""
         async with self.pool.acquire() as conn:
             await conn.execute(
-                "CALL usp_upsert_player_game_stats($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $41)",
+                "CALL usp_upsert_player_game_stats($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41)",
                 player_id, game_id,
                 stats.get("pass_comp"), stats.get("pass_att"), stats.get("pass_yds"),
                 stats.get("pass_td"), stats.get("pass_int"), stats.get("pass_sacked"),
