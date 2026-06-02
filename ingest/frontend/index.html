@@ -238,6 +238,9 @@
               <button @click="fetchGames" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                 <i data-lucide="filter" class="w-4 h-4"></i> Filter
               </button>
+              <button @click.stop="fetchGames()" class="bg-surface hover:bg-surfaceHover border border-border text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
+              </button>
             </div>
           </div>
           <div class="glass-panel rounded-xl overflow-hidden">
