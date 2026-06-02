@@ -33,15 +33,16 @@ async def get_games(
     params = []
     param_idx = 1
     
+    from datetime import date
+    
     if date_start:
         where.append(f"game_date::date >= ${param_idx}")
-        params.append(date_start)
+        params.append(date.fromisoformat(date_start))
         param_idx += 1
         
     if date_end:
-        # Cast parameter to date to ensure comparison works correctly
         where.append(f"game_date::date <= ${param_idx}")
-        params.append(date_end)
+        params.append(date.fromisoformat(date_end))
         param_idx += 1
         
     if season:

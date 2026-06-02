@@ -119,7 +119,7 @@ class IngestionEngine:
             # Use the specific 'dates & week' ESPN endpoint which reliably returns 
             # all events for that week at the top level of the JSON.
             params = {"dates": int(year), "week": str(week)}
-            logger.info(f"Using ESPN API forYear={year} Week={week}")
+            logger.info(f"Using ESPN API for Year={year} Week={week}")
             
             import requests
             url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
@@ -131,8 +131,14 @@ class IngestionEngine:
                 logger.warning(f"Week endpoint failed for {year} W{week}: {sb.status_code}")
                 return 0, 0
                 
-            sb.json()
-            event_ids = [str(e["id"]) for e in sb.json().get("events", [])]
+            # Parse JSON once and reuse the data object
+            data = sb.json()
+            
+            # ESPN's scoreboard sometimes nests events under leagues if top-level events is empty 
+            # or if the dates/week format matches a network-specific payload.
+            events = data.get("events") or data.get("leagues", [{}])[0].get("events", [])
+                
+            event_ids = [str(e["id"]) for e in events if e.get("id")]
             
             if not event_ids:
                 logger.info(f"No games found for Year {year}, Week {week}")

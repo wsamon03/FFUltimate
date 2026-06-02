@@ -49,7 +49,7 @@ async def ingest_single_game(
 ):
     """Ingest a single game by ESPN event ID. Returns immediately."""
     task_id = uuid.uuid4()
-    status_store.create_task(task_id, "game")
+    status_store.create_task(task_id, "game", params={"event_id": event_id})
     status_store.update_task(task_id, status="running")
     
     async def run_ingestion():
@@ -78,7 +78,7 @@ async def ingest_week(
 ):
     """Ingest all games for a specific week. Returns immediately."""
     task_id = uuid.uuid4()
-    status_store.create_task(task_id, "week")
+    status_store.create_task(task_id, "week", params={"year": year, "week": week})
     status_store.update_task(task_id, status="running", progress={"ingested": 0, "failed": 0, "total": 0})
     
     async def run_week_ingestion():
@@ -102,7 +102,7 @@ async def ingest_season(
 ):
     """Ingest an entire season. Returns immediately."""
     task_id = uuid.uuid4()
-    status_store.create_task(task_id, "season")
+    status_store.create_task(task_id, "season", params={"year": year})
     status_store.update_task(task_id, status="running", progress={"ingested": 0, "failed": 0, "total": 0})
     
     async def run_season_ingestion():

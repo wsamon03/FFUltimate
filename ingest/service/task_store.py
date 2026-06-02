@@ -30,12 +30,13 @@ class PersistentTaskStore:
         with open(self.path, 'w') as f:
             json.dump(data, f, indent=2)
 
-    def create_task(self, task_id: uuid.UUID, task_type: str = "unknown") -> dict:
+    def create_task(self, task_id: uuid.UUID, task_type: str = "unknown", params: dict = None) -> dict:
         tasks = self._load()
         tasks[str(task_id)] = {
             "id": str(task_id),
             "type": task_type,
             "status": "queued",
+            "params": params or {},
             "progress": {"ingested": 0, "failed": 0},
             "error": None,
             "created_at": datetime.now().isoformat(),
@@ -53,10 +54,10 @@ class PersistentTaskStore:
         return tasks[str(task_id)]
 
     def complete_task(self, task_id: uuid.UUID, total: int = 0) -> dict:
-        return self.update_task(task_id, status="completed", progress={"ingested": total, "failed": 0, "total": total})
+        return self.update_task(task_id, status="completed", progress={"ingested": total if total else 0, "failed": 0, "total": total})
 
     def fail_task(self, task_id: uuid.UUID, error: str) -> dict:
-        return self.update_task(task_id, status="failed", error=error, progress=None)
+        return self.update_task(task_id, status="failed", error=error, progress={"ingested": 0, "failed": 0, "total": 0})
 
     def update_progress(self, task_id: uuid.UUID, ingested: int, failed: int, total: int = 0) -> dict:
         return self.update_task(task_id, progress={"ingested": ingested, "failed": failed, "total": total})
