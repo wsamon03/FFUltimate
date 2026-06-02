@@ -135,6 +135,10 @@ BEGIN
     SELECT id INTO v_home_team_id FROM teams WHERE espn_id = p_home_espn_id OR p_home_espn_id = ANY(COALESCE(game_team_espn_ids, ARRAY[]::VARCHAR[])) LIMIT 1;
     SELECT id INTO v_away_team_id FROM teams WHERE espn_id = p_away_espn_id OR p_away_espn_id = ANY(COALESCE(game_team_espn_ids, ARRAY[]::VARCHAR[])) LIMIT 1;
 
+    IF v_home_team_id IS NULL OR v_away_team_id IS NULL THEN
+        RAISE EXCEPTION 'Could not resolve home team (espn_id=%) or away team (espn_id=%)', p_home_espn_id, p_away_espn_id;
+    END IF;
+
     INSERT INTO games (espn_id, status_code, game_date, home_espn_id, away_espn_id, home_team_id, away_team_id, week, season_year)
         VALUES (p_espn_id, p_status_code, p_game_date, p_home_espn_id, p_away_espn_id, v_home_team_id, v_away_team_id, p_week, p_season_year)
     ON CONFLICT (espn_id) DO UPDATE SET
