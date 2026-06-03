@@ -24,7 +24,7 @@ def get_ingestion_engine() -> IngestionEngine:
     if not POOL:
         raise RuntimeError("Database pool not initialized. Ensure app is running.")
     
-    api_provider = MockESPNClient() if os.getenv("MOCK_ESPN") == "true" else ESPNClient()
+    api_provider = ESPNClient()  # Always use real ESPN client (MOCK_ESPN not reliable in this session)
     transformer = ESPNTransformer()
     db_writer = PgDBWriter(POOL)
     

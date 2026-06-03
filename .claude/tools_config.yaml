@@ -1,0 +1,4 @@
+tasks:
+  - name: "NFL Season Checker"
+    schedule: "*/60 * * * *"
+    query: "SELECT COUNT(*) as count FROM games"

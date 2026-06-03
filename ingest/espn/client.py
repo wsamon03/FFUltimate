@@ -51,16 +51,24 @@ class ESPNClient(APIProvider):
 
     async def fetch_game_summary(self, event_id: str) -> Optional[dict]:
         """Fetch full game boxscore summary for a given event ID."""
-        logger.debug(f"Fetching game summary for event={event_id}")
-        resp = await asyncio.to_thread(requests.get, f"{ESPN_SUMMARY_URL}?event={event_id}", headers=ESPN_HEADERS, timeout=30)
-        if resp.status_code == 200:
-            data = resp.json()
-            if isinstance(data, int):
-                logger.debug(f"  Game {event_id}: API returned status code instead of data")
+        _t0 = __import__('time').time()
+        logger.info(f"[FETCH] event={event_id} START")
+        try:
+            resp = await asyncio.to_thread(requests.get, f"{ESPN_SUMMARY_URL}?event={event_id}", headers=ESPN_HEADERS, timeout=30)
+            logger.info(f"[FETCH] event={event_id} status={resp.status_code} len={len(resp.content)} took={__import__('time').time()-_t0:.3f}s")
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, int):
+                    logger.warning(f"[FETCH] event={event_id} returned int={data}")
+                    return None
+                logger.info(f"[FETCH] event={event_id} OK keys={list(data.keys())[:5]}")
+                return data
+            else:
+                logger.warning(f"[FETCH] event={event_id} non-200 HTTP {resp.status_code}")
                 return None
-            return data
-        logger.debug(f"  Game {event_id}: HTTP {resp.status_code} - skipping")
-        return None
+        except Exception as _e:
+            logger.error(f"[FETCH] event={event_id} EXCEPTION: {_e}")
+            return None
 
     async def discover_season_games(self, year: str, include_playoffs: bool = False) -> list[str]:
         """Discover all game IDs for a season using historical endpoint."""
