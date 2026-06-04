@@ -150,7 +150,7 @@ async def get_leaderboard(game_id: str, category: str = "passing", pool: asyncpg
             "t.full_name as team_name "
             "FROM player_game_stats pgs "
             "JOIN players p ON pgs.player_id = p.id "
-            "JOIN team_game_stats ts ON ts.game_id = pgs.game_id AND pgs.game_id = ts.game_id "
+            "JOIN teams t ON t.id = p.team_id "
             "WHERE pgs.game_id = $1 AND pgs.pass_att > 0 "
             "ORDER BY pgs.pass_yds DESC LIMIT 20"
         )
@@ -161,6 +161,7 @@ async def get_leaderboard(game_id: str, category: str = "passing", pool: asyncpg
             "t.full_name as team_name "
             "FROM player_game_stats pgs "
             "JOIN players p ON pgs.player_id = p.id "
+            "JOIN teams t ON t.id = p.team_id "
             "WHERE pgs.game_id = $1 AND pgs.rush_att > 0 "
             "ORDER BY pgs.rush_yds DESC LIMIT 20"
         )
@@ -171,6 +172,7 @@ async def get_leaderboard(game_id: str, category: str = "passing", pool: asyncpg
             "t.full_name as team_name "
             "FROM player_game_stats pgs "
             "JOIN players p ON pgs.player_id = p.id "
+            "JOIN teams t ON t.id = p.team_id "
             "WHERE pgs.game_id = $1 AND pgs.rec_receptions > 0 "
             "ORDER BY pgs.rec_yds DESC LIMIT 20"
         )
@@ -179,7 +181,25 @@ async def get_leaderboard(game_id: str, category: str = "passing", pool: asyncpg
         raise HTTPException(status_code=400, detail=f"Unknown category: {category}")
         
     async with pool.acquire() as conn:
-        rows = await conn.fetch(query, *params)
+        try:
+            rows = await conn.fetch(query, *params)
+        except Exception as e:
+            print(f"[ERROR] get_leaderboard query failed for {game_uuid}: {e}")
+            raise
+        # Debug - check if any data exists for this game
+        if not rows:
+            print(f"[DEBUG] No rows returned for game {game_uuid} in category {category}")
+            # Check if player_game_stats has data
+            count_query_str = f"SELECT COUNT(*) FROM player_game_stats WHERE game_id = $1"
+            count_results = await conn.fetch(count_query_str, game_uuid)
+            # Debug - see actual column name and structure
+            if count_results:
+                print(f"[DEBUG] Count results: {count_results}")
+                count_value = count_results[0].get("COUNT(*)", count_results[0].get("COUNT", 0))
+                if count_value:
+                    print(f"[DEBUG] Total player_game_stats records for game {game_uuid}: {count_value}")
+        else:
+            print(f"[DEBUG] Returned {len(rows)} rows for game {game_uuid} - {category}")
         return [dict(r) for r in rows]
 
 @router.get("/fantasy/{player_id}")
