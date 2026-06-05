@@ -675,7 +675,10 @@
               const data = await res.json();
               if (data.status === 'success') {
                 this.deleteResult = 'success';
-                alert('Data deleted successfully!');
+                alert(data.message || 'Data deleted successfully!');
+              } else if (data.status === 'warning') {
+                this.deleteResult = 'warning';
+                alert('No data found for this combination:\n' + JSON.stringify(data.details));
               } else {
                 this.deleteResult = 'error';
                 alert('Delete failed: ' + (data.message || 'Unknown error'));
