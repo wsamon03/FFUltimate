@@ -6,12 +6,35 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
 import asyncpg
+from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from ingest.service.ingestion_router import router as ingestion_router
+from ingest.service.retrieval_router import router as retrieval_router
 
 # Load environment variables from .env file
 load_dotenv()
 
 logger = logging.getLogger(__name__)
 POOL = None
+
+
+# ========== APP CREATION ==========
+app = FastAPI(
+    title="NFL Data Ingestion API",
+    description="API for ingesting and retrieving NFL game data from sports APIs",
+    version="1.1.0",
+    lifespan=lifespan
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(ingestion_router)
+app.include_router(retrieval_router)
 
 
 @asynccontextmanager
@@ -176,27 +199,3 @@ async def delete_game(event_id: str = Query(...)):
     except Exception as e:
         logger.error(f"Failed to delete game {event_id}: {e}")
         return {"status": "error", "message": "Delete failed", "error": str(e)}
-
-
-
-from fastapi import FastAPI, Depends, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-from ingest.service.ingestion_router import router as ingestion_router
-from ingest.service.retrieval_router import router as retrieval_router
-
-app = FastAPI(
-    title="NFL Data Ingestion API",
-    description="API for ingesting and retrieving NFL game data from sports APIs",
-    version="1.1.0",
-    lifespan=lifespan
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(ingestion_router)
-app.include_router(retrieval_router)
