@@ -255,6 +255,7 @@
                     <th class="px-6 py-4 text-center">Score</th>
                     <th class="px-6 py-4">Away</th>
                     <th class="px-6 py-4">Status</th>
+                    <th class="px-6 py-4">Game ID</th>
                   </tr>
                 </thead>
     <tbody class="divide-y divide-border">
@@ -300,18 +301,16 @@
               :class="game.status_code === 'FINAL' ? 'bg-emerald-900/30 text-emerald-400' : 'bg-amber-900/30 text-amber-400'"
               x-text="game.status_code"></span>
           </td>
+          <!-- Game ID -->
+          <td class="px-6 py-4 font-mono text-xs text-slate-500" x-text="game.id.substring(0, 8)"></td>
         </tr>
       </template>
     </tbody>
-                          x-text="game.status_code"></span>
-                      </td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+  </table>
+</div>
+</div>
+</div>
+</div>
 
         <!-- ================= STATS TAB ================= -->
         <div x-show="activeTab === 'stats'" x-transition:enter="transition ease-out duration-200">
