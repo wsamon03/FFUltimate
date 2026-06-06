@@ -64,7 +64,9 @@ class PgDBWriter:
         home_espn_id: str, 
         away_espn_id: str, 
         week: int, 
-        season_year: int
+        season_year: int,
+        home_score: int = None,
+        away_score: int = None
     ) -> uuid.UUID:
         """Upsert game via stored procedure (procedure resolves team UUIDs internally)."""
         # Strip timezone info so psycopg2 passes TIMESTAMP not TIMESTAMPTZ
@@ -79,9 +81,9 @@ class PgDBWriter:
         
         async with self.pool.acquire() as conn:
             await conn.execute(
-                "CALL usp_upsert_game($1, $2, $3, $4, $5, $6, $7)",
+                "CALL usp_upsert_game($1, $2, $3, $4, $5, $6, $7, $8, $9)",
                 espn_id, status_code, game_date,
-                home_id, away_id, week, season_year
+                home_id, away_id, home_score, away_score, week, season_year
             )
             row = await conn.fetchval(
                 "SELECT id FROM games WHERE espn_id = $1",

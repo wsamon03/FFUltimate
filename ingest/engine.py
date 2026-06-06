@@ -66,6 +66,8 @@ class IngestionEngine:
                     away_espn_id=parsed_game.away_team.espn_id,
                     week=parsed_game.week,
                     season_year=parsed_game.season_year,
+                    home_score=parsed_game.home_score,
+                    away_score=parsed_game.away_score,
                 )
 
                 # Upsert team stats

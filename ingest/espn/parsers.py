@@ -226,4 +226,6 @@ def parse_summary(raw: dict) -> Optional[NormalizedGame]:
         season_year=season_year,
         home_players=home_players,
         away_players=away_players,
+        home_score=home_team.score,
+        away_score=away_team.score,
     )

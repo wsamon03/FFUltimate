@@ -47,7 +47,7 @@
   </head>
 
   <body class="bg-slate-950 text-slate-200 font-sans min-h-screen flex overflow-hidden" x-data="nflApp()">
-    
+
     <!-- Sidebar Navigation -->
     <aside class="w-64 bg-slate-900 border-r border-border flex flex-col h-screen shrink-0 transition-all z-10"
            :class="sidebarOpen ? 'translate-x-0' : '-translate-x-64 fixed lg:relative lg:translate-x-0'">
@@ -104,7 +104,7 @@
 
       <!-- Scrollable Content -->
       <div class="flex-1 overflow-auto p-6">
-        
+
         <!-- Settings Config -->
         <div x-show="showConfig" x-transition.opacity.duration.300ms class="mb-6 glass-panel rounded-xl p-6">
           <div class="flex items-center justify-between mb-4">
@@ -248,35 +248,61 @@
               <table class="w-full text-left text-sm text-slate-400">
                 <thead class="bg-surface text-slate-200 uppercase font-medium text-xs">
                   <tr>
+                    <th class="px-6 py-4">Season</th>
+                    <th class="px-6 py-4">Week</th>
                     <th class="px-6 py-4">Date</th>
-                        <th class="px-6 py-4">Week</th>
-                        <th class="px-6 py-4">Away</th>
-                    <th class="px-6 py-4">Score</th>
                     <th class="px-6 py-4">Home</th>
+                    <th class="px-6 py-4 text-center">Score</th>
+                    <th class="px-6 py-4">Away</th>
                     <th class="px-6 py-4">Status</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-border">
-                  <template x-for="game in gameList" :key="game.id">
-                    <tr class="hover:bg-surfaceHover/50 transition-colors cursor-pointer" @click="activeTab = 'stats'; loadGameStats(game.id)">
-                      <td class="px-6 py-4" x-text="game.game_date"></td>
-                      <td class="px-6 py-4 text-slate-300 font-mono">W<span x-text="game.week"></span></td>
-                      <td class="px-6 py-4">
-                        <div class="flex items-center gap-2">
-                          <span class="font-mono font-bold text-blue-400" x-text="game.away_abbr"></span>
-                          <span x-text="game.away_name"></span>
-                        </div>
-                      </td>
-                      <td class="px-6 py-4 text-center font-mono font-bold text-white">VS</td>
-                      <td class="px-6 py-4">
-                        <div class="flex items-center justify-end gap-2 text-right">
-                          <span x-text="game.home_name"></span>
-                          <span class="font-mono font-bold text-blue-400" x-text="game.home_abbr"></span>
-                        </div>
-                      </td>
-                      <td class="px-6 py-4">
-                        <span class="px-2 py-1 bg-slate-800 rounded text-xs whitespace-nowrap"
-                          :class="game.status_code === 'FINAL' ? 'bg-emerald-900/30 text-emerald-400' : 'bg-amber-900/30 text-amber-400'"
+    <tbody class="divide-y divide-border">
+      <template x-for="game in gameList" :key="game.id">
+        <tr class="hover:bg-surfaceHover/50 transition-colors cursor-pointer" @click="activeTab = 'stats'; loadGameStats(game.id)">
+          <!-- Season -->
+          <td class="px-6 py-4 text-slate-300 font-mono" x-text="game.season_year"></td>
+          <!-- Week -->
+          <td class="px-6 py-4 text-slate-300 font-mono">W<span x-text="game.week"></span></td>
+          <!-- Date -->
+          <td class="px-6 py-4 text-slate-300" x-text="game.game_date"></td>
+          <!-- Home -->
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-2">
+              <span class="font-mono font-bold"
+                :class="game.home_score !== null && game.home_score > game.away_score ? 'text-emerald-400' : 'text-blue-400'"
+                x-text="game.home_abbr"></span>
+              <span :class="game.home_score > game.away_score ? 'font-bold text-emerald-400' : 'text-slate-200'" x-text="game.home_name"></span>
+            </div>
+          </td>
+          <!-- Score -->
+          <td class="px-6 py-4 text-center font-mono font-bold">
+            <span x-show="game.home_score !== null"
+              :class="game.home_score > game.away_score ? 'text-emerald-400' : 'text-slate-400'"
+              x-text="game.home_score"></span>
+            <span class="text-slate-600"> vs </span>
+            <span x-show="game.away_score !== null"
+              :class="game.away_score > game.home_score ? 'text-emerald-400' : 'text-slate-400'"
+              x-text="game.away_score"></span>
+          </td>
+          <!-- Away -->
+          <td class="px-6 py-4">
+            <div class="flex items-center justify-end gap-2 text-right">
+              <span :class="game.away_score > game.home_score ? 'font-bold text-emerald-400' : 'text-slate-200'" x-text="game.away_name"></span>
+              <span class="font-mono font-bold"
+                :class="game.away_score !== null && game.away_score > game.home_score ? 'text-emerald-400' : 'text-blue-400'"
+                x-text="game.away_abbr"></span>
+            </div>
+          </td>
+          <!-- Status -->
+          <td class="px-6 py-4">
+            <span class="px-2 py-1 bg-slate-800 rounded text-xs whitespace-nowrap"
+              :class="game.status_code === 'FINAL' ? 'bg-emerald-900/30 text-emerald-400' : 'bg-amber-900/30 text-amber-400'"
+              x-text="game.status_code"></span>
+          </td>
+        </tr>
+      </template>
+    </tbody>
                           x-text="game.status_code"></span>
                       </td>
                     </tr>
@@ -289,7 +315,7 @@
 
         <!-- ================= STATS TAB ================= -->
         <div x-show="activeTab === 'stats'" x-transition:enter="transition ease-out duration-200">
-          
+
           <div x-show="!viewStatsMode" class="flex items-center gap-4 mb-8 p-6 glass-panel rounded-xl">
             <div class="text-4xl text-primary/50"><i data-lucide="bar-chart-2"></i></div>
             <div>
@@ -318,7 +344,7 @@
                   </div>
                 </div>
                 <div class="text-xs text-slate-400 mb-4">Leaderboard for <span class="text-white font-bold uppercase" x-text="statsFilters.category"></span></div>
-                
+
                 <div class="overflow-x-auto">
                   <table class="w-full text-left text-sm">
                     <thead class="text-slate-500 border-b border-border">
@@ -499,7 +525,7 @@
       // CONFIGURATION - UPDATE THIS URL
       // ==========================================
       // Ensure your FastAPI server (uvicorn) is running and CORS allows localhost:*
-      const BASE_URL = "http://localhost:8002"; 
+      const BASE_URL = "http://localhost:8002";
       // ==========================================
 
       function nflApp() {
@@ -518,14 +544,14 @@
           filters: { dateStart: '', dateEnd: '', category: 'passing' },
           statsFilters: { category: 'passing', selectedGame: null },
           viewStatsMode: null,
-          
+
           // Deletion state
           deleteType: null,
           deletePendingParams: {},
           deleteResult: null,
           isDeleting: false,
           showConfirmDelete: false,
-          
+
           tabs: [
             { id: 'ingest', name: 'Ingestion', icon: 'zap' },
             { id: 'teams', name: 'Teams', icon: 'users' },
@@ -556,7 +582,7 @@
           // --- Ingestion Logic ---
           async createTask(type) {
             let url;
-            
+
             if (type === 'game') {
               if(!this.inputs.game) return alert("Please enter an Event ID");
               url = `${BASE_URL}/api/ingest/game?event_id=${this.inputs.game}`;
@@ -593,11 +619,11 @@
             const queryParams = [];
             if(this.filters.dateStart) queryParams.push(`date_start=${this.filters.dateStart}`);
             if(this.filters.dateEnd) queryParams.push(`date_end=${this.filters.dateEnd}`);
-            
+
             if (queryParams.length > 0) {
                 url += queryParams.join("&");
             }
-            
+
             try {
               const res = await fetch(url);
               this.gameList = await res.json();
@@ -615,7 +641,7 @@
             if(!id) return;
             this.viewStatsMode = 'player';
             this.statsData = null;
-            
+
             // Use the fantasy endpoint specifically for the nice table layout
             const res = await fetch(`${BASE_URL}/fantasy/${id}`);
             this.statsData = await res.json();
@@ -633,7 +659,7 @@
             const res = await fetch(url);
             this.statsData = await res.json();
           },
-          
+
           async testConnection() {
             this.testingConnection = true;
             this.connectionStatus = null;

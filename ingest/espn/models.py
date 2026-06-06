@@ -38,6 +38,9 @@ class NormalizedGame(BaseModel):
     season_year: int
     home_players: list[NormalizedPlayer]
     away_players: list[NormalizedPlayer]
+    # Denormalized scores from the game dimension table
+    home_score: Optional[int] = None
+    away_score: Optional[int] = None
 
 
 @dataclass

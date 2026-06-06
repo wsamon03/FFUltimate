@@ -53,6 +53,7 @@ async def get_games(
     
     query = (
         f"SELECT g.id, g.espn_id, g.game_date, g.status_code, g.week, g.season_year, "
+        f"g.home_score, g.away_score, "
         f"h.abbr as home_abbr, h.full_name as home_name, "
         f"a.abbr as away_abbr, a.full_name as away_name "
         f"FROM games g "

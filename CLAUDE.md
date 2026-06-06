@@ -18,3 +18,91 @@ When querying the NFL shortcut API endpoint (`/apis/site/v2/sports/football/nfl/
 
 ### Retrieval Router Syntax (`ingest/service/retrieval_router.py`)
 *   **Date Casting**: The endpoints expect input for `date_start` and `date_end`. When passing these string parameters to `asyncpg`, you **must** cast them to `::date` in your SQL query (e.g., `WHERE game_date::date >= $1`). If you do not, `asyncpg` will crash with an `AttributeError` because strings do not have the `toordinal` method required for datetime comparison.
+
+### DELETE API Operation Patterns
+*   **Zero-Row Detection**: `DELETE` commands **always return HTTP 200** even when zero rows are affected. Always verify with `SELECT COUNT(*)` before `DELETE`.
+    *   **Pattern**: `SELECT COUNT(*) FROM table WHERE condition` BEFORE `DELETE FROM table WHERE condition`
+    *   **Response Contract**:
+        *   HTTP 200 + `status: "success"` → Data existed and was deleted
+        *   HTTP 200 + `status: "warning"` → No data found for deletion
+        *   HTTP 500 + `status: "error"` → Operation failed
+*   **Never Delete Unless Matched**: Always run `COUNT(*)` check before deletion to avoid deleting records that don't exist
+
+### FastAPI Query Parameter Validation
+*   **Validate Before Deletion**: Use `@app.delete("{/id}", ...)` with `Query(...)` parameters
+*   **Parameter Validation**: Always validate parameters before deletion checks (catches malformed requests early)
+*   **Range Validation**: Match validation ranges to actual data (don't assume weeks = 1-18, use 0-22 for ESPN)
+
+### Ingest Pipeline Verification
+*   **Verify Column Columns**: Always verify `ingest/engine.py` populates `week` and `season_year` columns before attempting `DELETE` operations
+*   **Check Procedure Output**: `usp_upsert_game(..., week, season_year)` writes columns into DB
+*   **Match Pipeline**: Delete operations must match exactly what `ingest/engine.py` writes (column values, column names)
+
+### asyncpg 0.31 Connection & Transaction Patterns
+*   **Transaction Scope**: `transaction()` context manager belongs to **Connection** object, NOT Pool
+    *   **Correct**: `async with POOL.acquire() as conn: async with conn.transaction(): await conn.execute(...)`
+    ```
+
+### ESPN Week Validation
+*   **Week Range**: ESPN returns weeks 1-18 (normal) but can return 0 or 19-22 for playoffs
+*   **Validation Rule**: Validate `week` parameter as `0` to `22` (not assumed to be 1-18)
+*   **Season Year Field**: ESPN uses `season_year` (league year) as integer, typically matches Super Bowl year
+
+### Delete API Pattern Example
+
+```python
+@app.delete("/api/delete/week")
+async def delete_week(year: int = Query(...), week: int = Query(...)):
+    """Delete all data for a given year-week"""
+    try:
+        # 1. Validate
+        if week < 0 or week > 22:
+            return {"status": "error", "message": "Week must be 0-22"}
+        
+        # 2. Check what matches BEFORE deleting
+        count = await conn.fetchval(
+            "SELECT COUNT(*) FROM games WHERE season_year = $1 AND week = $2",
+            year, week
+        )
+        
+        # 3. Return warning if no data found
+        if count == 0:
+            return {
+                "status": "warning",
+                "message": "No data found for deletion",
+                "details": {"year": year, "week": week, "games_matching": 0}
+            }
+        
+        # 4. Delete with transparency
+        await conn.execute("DELETE FROM games WHERE season_year = $1 AND week = $2", year, week)
+        await conn.execute("DELETE FROM player_game_stats WHERE game_id IN (SELECT id FROM games WHERE season_year = $1 AND week = $2)", year, week)
+        await conn.execute("DELETE FROM team_game_stats WHERE game_id IN (SELECT id FROM games WHERE season_year = $1 AND week = $2)", year, week)
+        
+        return {"status": "success", "message": f"Week deleted ({count} games removed)"}
+    except Exception as e:
+        logger.error(f"Failed to delete week {year}-{week}: {e}")
+        return {"status": "error", "message": "Delete failed", "error": str(e)}
+```
+
+### Ingest Engine Column Mapping
+
+| Input Column | Ingest Output | DB Column | Procedure Parameter |
+|------|------|------|------|
+| `season` | `season_year` | `games.season_year` | `p_season_year` |
+| `week` | `week` | `games.week` | `p_week` |
+| `status` | `status_code` | `games.status_code` | `p_status_code` |
+| `game_date` | `NormalizedGame.game_date` | `games.game_date` | Passed through |
+
+**Key Insight**: Match `DELETE` SQL to exactly what `ingest/engine.py` writes to `usp_upsert_game()` to avoid zero-match bugs.
+
+### Game Score Schema Design
+
+*   **Core Lesson**: Denormalize match results (`home_score`, `away_score`) into the `games` table rather than relying exclusively on fact tables (`team_game_stats`).
+*   **Why**: Fetching the score requires JOINs to the fact tables. Keeping it in the dimension table makes the primary display/API significantly faster.
+*   **Rule**: The `games` table must serve as the authoritative source for game metadata and final scores.
+
+### Game Score Schema Design
+
+*   **Core Lesson**: Denormalize match results (`home_score`, `away_score`) into the `games` table rather than relying exclusively on fact tables (`team_game_stats`).
+*   **Why**: Fetching the score requires JOINs to the fact tables. Keeping it in the dimension table makes the primary display/API significantly faster and prevents schema coupling issues.
+*   **Rule**: The `games` table must serve as the authoritative source for game metadata and final scores. Always update `games` alongside stats.

@@ -122,6 +122,8 @@ CREATE OR REPLACE PROCEDURE usp_upsert_game(
     p_game_date     TIMESTAMP,
     p_home_espn_id  VARCHAR,
     p_away_espn_id  VARCHAR,
+    p_home_score    INT,
+    p_away_score    INT,
     p_week          INT,
     p_season_year   INT
 )
@@ -139,8 +141,8 @@ BEGIN
         RAISE EXCEPTION 'Could not resolve home team (espn_id=%) or away team (espn_id=%)', p_home_espn_id, p_away_espn_id;
     END IF;
 
-    INSERT INTO games (espn_id, status_code, game_date, home_espn_id, away_espn_id, home_team_id, away_team_id, week, season_year)
-        VALUES (p_espn_id, p_status_code, p_game_date, p_home_espn_id, p_away_espn_id, v_home_team_id, v_away_team_id, p_week, p_season_year)
+    INSERT INTO games (espn_id, status_code, game_date, home_espn_id, away_espn_id, home_team_id, away_team_id, home_score, away_score, week, season_year)
+        VALUES (p_espn_id, p_status_code, p_game_date, p_home_espn_id, p_away_espn_id, v_home_team_id, v_away_team_id, p_home_score, p_away_score, p_week, p_season_year)
     ON CONFLICT (espn_id) DO UPDATE SET
         status_code    = EXCLUDED.status_code,
         game_date      = EXCLUDED.game_date,
@@ -157,7 +159,9 @@ BEGIN
        OR games.home_team_id <> EXCLUDED.home_team_id
        OR games.away_team_id <> EXCLUDED.away_team_id
        OR games.week <> EXCLUDED.week
-       OR games.season_year <> EXCLUDED.season_year;
+       OR games.season_year <> EXCLUDED.season_year
+       OR games.home_score <> EXCLUDED.home_score
+       OR games.away_score <> EXCLUDED.away_score;
 END;
 $$;
 
@@ -324,44 +328,44 @@ BEGIN
         p_metadata
     )
     ON CONFLICT (player_id, game_id) DO UPDATE SET
-        pass_comp = COALESCE(EXCLUDED.pass_comp, pg.pass_comp),
-        pass_att        = COALESCE(EXCLUDED.pass_att, pg.pass_att),
-        pass_yds        = COALESCE(EXCLUDED.pass_yds, pg.pass_yds),
-        pass_td = COALESCE(EXCLUDED.pass_td, pg.pass_td),
-        pass_int        = COALESCE(EXCLUDED.pass_int, pg.pass_int),
-        pass_sacked = COALESCE(EXCLUDED.pass_sacked, pg.pass_sacked),
-        rush_att        = COALESCE(EXCLUDED.rush_att, pg.rush_att),
-        rush_yds        = COALESCE(EXCLUDED.rush_yds, pg.rush_yds),
-        rush_td = COALESCE(EXCLUDED.rush_td, pg.rush_td),
-        rec_receptions = COALESCE(EXCLUDED.rec_receptions, pg.rec_receptions),
-        rec_targets = COALESCE(EXCLUDED.rec_targets, pg.rec_targets),
-        rec_yds = COALESCE(EXCLUDED.rec_yds, pg.rec_yds),
-        rec_td = COALESCE(EXCLUDED.rec_td, pg.rec_td),
-        def_solo        = COALESCE(EXCLUDED.def_solo, pg.def_solo),
-        def_ast = COALESCE(EXCLUDED.def_ast, pg.def_ast),
-        def_sacks = COALESCE(EXCLUDED.def_sacks, pg.def_sacks),
-        def_tfl = COALESCE(EXCLUDED.def_tfl, pg.def_tfl),
-        def_pd = COALESCE(EXCLUDED.def_pd, pg.def_pd),
-        def_qb_hits = COALESCE(EXCLUDED.def_qb_hits, pg.def_qb_hits),
-        def_td = COALESCE(EXCLUDED.def_td, pg.def_td),
-        def_int = COALESCE(EXCLUDED.def_int, pg.def_int),
-        ret_kick_no = COALESCE(EXCLUDED.ret_kick_no, pg.ret_kick_no),
-        ret_kick_yds = COALESCE(EXCLUDED.ret_kick_yds, pg.ret_kick_yds),
-        ret_kick_td = COALESCE(EXCLUDED.ret_kick_td, pg.ret_kick_td),
-        ret_punt_no = COALESCE(EXCLUDED.ret_punt_no, pg.ret_punt_no),
-        ret_punt_yds = COALESCE(EXCLUDED.ret_punt_yds, pg.ret_punt_yds),
-        ret_punt_td = COALESCE(EXCLUDED.ret_punt_td, pg.ret_punt_td),
-        k_fg_make = COALESCE(EXCLUDED.k_fg_make, pg.k_fg_make),
-        k_fg_att        = COALESCE(EXCLUDED.k_fg_att, pg.k_fg_att),
-        k_xp_make = COALESCE(EXCLUDED.k_xp_make, pg.k_xp_make),
-        k_xp_att        = COALESCE(EXCLUDED.k_xp_att, pg.k_xp_att),
-        p_no = COALESCE(EXCLUDED.p_no, pg.p_no),
-        p_yds = COALESCE(EXCLUDED.p_yds, pg.p_yds),
-        p_in20 = COALESCE(EXCLUDED.p_in20, pg.p_in20),
-        p_tb = COALESCE(EXCLUDED.p_tb, pg.p_tb),
-        p_fc = COALESCE(EXCLUDED.p_fc, pg.p_fc),
-        p_blk = COALESCE(EXCLUDED.p_blk, pg.p_blk),
-        p_long = COALESCE(EXCLUDED.p_long, pg.p_long),
+        pass_comp = COALESCE(EXCLUDED.pass_comp, player_game_stats.pass_comp),
+        pass_att        = COALESCE(EXCLUDED.pass_att, player_game_stats.pass_att),
+        pass_yds        = COALESCE(EXCLUDED.pass_yds, player_game_stats.pass_yds),
+        pass_td = COALESCE(EXCLUDED.pass_td, player_game_stats.pass_td),
+        pass_int        = COALESCE(EXCLUDED.pass_int, player_game_stats.pass_int),
+        pass_sacked = COALESCE(EXCLUDED.pass_sacked, player_game_stats.pass_sacked),
+        rush_att        = COALESCE(EXCLUDED.rush_att, player_game_stats.rush_att),
+        rush_yds        = COALESCE(EXCLUDED.rush_yds, player_game_stats.rush_yds),
+        rush_td = COALESCE(EXCLUDED.rush_td, player_game_stats.rush_td),
+        rec_receptions = COALESCE(EXCLUDED.rec_receptions, player_game_stats.rec_receptions),
+        rec_targets = COALESCE(EXCLUDED.rec_targets, player_game_stats.rec_targets),
+        rec_yds = COALESCE(EXCLUDED.rec_yds, player_game_stats.rec_yds),
+        rec_td = COALESCE(EXCLUDED.rec_td, player_game_stats.rec_td),
+        def_solo        = COALESCE(EXCLUDED.def_solo, player_game_stats.def_solo),
+        def_ast = COALESCE(EXCLUDED.def_ast, player_game_stats.def_ast),
+        def_sacks = COALESCE(EXCLUDED.def_sacks, player_game_stats.def_sacks),
+        def_tfl = COALESCE(EXCLUDED.def_tfl, player_game_stats.def_tfl),
+        def_pd = COALESCE(EXCLUDED.def_pd, player_game_stats.def_pd),
+        def_qb_hits = COALESCE(EXCLUDED.def_qb_hits, player_game_stats.def_qb_hits),
+        def_td = COALESCE(EXCLUDED.def_td, player_game_stats.def_td),
+        def_int = COALESCE(EXCLUDED.def_int, player_game_stats.def_int),
+        ret_kick_no = COALESCE(EXCLUDED.ret_kick_no, player_game_stats.ret_kick_no),
+        ret_kick_yds = COALESCE(EXCLUDED.ret_kick_yds, player_game_stats.ret_kick_yds),
+        ret_kick_td = COALESCE(EXCLUDED.ret_kick_td, player_game_stats.ret_kick_td),
+        ret_punt_no = COALESCE(EXCLUDED.ret_punt_no, player_game_stats.ret_punt_no),
+        ret_punt_yds = COALESCE(EXCLUDED.ret_punt_yds, player_game_stats.ret_punt_yds),
+        ret_punt_td = COALESCE(EXCLUDED.ret_punt_td, player_game_stats.ret_punt_td),
+        k_fg_make = COALESCE(EXCLUDED.k_fg_make, player_game_stats.k_fg_make),
+        k_fg_att        = COALESCE(EXCLUDED.k_fg_att, player_game_stats.k_fg_att),
+        k_xp_make = COALESCE(EXCLUDED.k_xp_make, player_game_stats.k_xp_make),
+        k_xp_att        = COALESCE(EXCLUDED.k_xp_att, player_game_stats.k_xp_att),
+        p_no = COALESCE(EXCLUDED.p_no, player_game_stats.p_no),
+        p_yds = COALESCE(EXCLUDED.p_yds, player_game_stats.p_yds),
+        p_in20 = COALESCE(EXCLUDED.p_in20, player_game_stats.p_in20),
+        p_tb = COALESCE(EXCLUDED.p_tb, player_game_stats.p_tb),
+        p_fc = COALESCE(EXCLUDED.p_fc, player_game_stats.p_fc),
+        p_blk = COALESCE(EXCLUDED.p_blk, player_game_stats.p_blk),
+        p_long = COALESCE(EXCLUDED.p_long, player_game_stats.p_long),
         metadata        = EXCLUDED.metadata,
         last_updated    = CURRENT_TIMESTAMP;
 END;
