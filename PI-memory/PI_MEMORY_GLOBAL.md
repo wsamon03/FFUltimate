@@ -196,7 +196,52 @@ SELECT * FROM mytable WHERE json_column::JSONB = 'data'
 
 ---
 
-**Last Updated**: 2026-06-03  
+## 🧪 Lesson #10: Alpine.js Orphaned Directives
+
+**Problem**: Dead HTML or fragment templates containing Alpine directives (`x-text`, `x-show`, `x-for`, etc.) outside a valid template scope **silently render as literal text** in the browser DOM. No JS error is thrown.
+
+**Root Cause**: During large multi-file merges, an orphaned directive or duplicate closing tag is often left outside its parent `<template>` or `x-show` block. Alpine.js ignores it entirely, but the browser renders the raw text.
+
+**Prevention**:
+- After template edits, search for the directive in question (e.g., `x-text=...`) and confirm it sits **inside** a valid Alpine block
+- Verify closing tags (`</template>`, `</div>`) match opening tags
+- Use your browser's DevTools (Elements panel) to verify the DOM doesn't contain rogue text nodes matching your directive
+
+**Code Pattern**:
+```html
+<!-- ✅ GOOD: Inside template scope -->
+<template x-for="item in list">
+  <div x-text="item.name"></div>
+</template>
+
+<!-- ❌ BAD: Orphaned directive -->
+<div x-text="item.name"></div>
+``` 
+
+---
+
+## 🧪 Lesson #11: Duplicate PostgreSQL Procedure Signatures
+
+**Problem**: Running `CREATE OR REPLACE` or migration scripts multiple times can result in **two different signatures** (different parameter count/types) coexisting in the database. PostgreSQL allows this if the signature differs.
+
+**Symptom**: The application throws `invalid input syntax for type integer` or `no function matches the given name and argument types` when calling the procedure, even though the code looks correct.
+
+**Root Cause**: `pg_proc` stores procedures by name + signature. If you update the code but forget to drop the old version, the runtime binds to the wrong one based on argument types.
+
+**Prevention**:
+- Always `DROP PROCEDURE IF EXISTS (...)` with the **old exact signature** before `CREATE OR REPLACE` in Python scripts
+- Verify signature post-update: `SELECT proname, pronargs, proargnames FROM pg_proc WHERE proname = 'procedure_name';`
+
+**Code Pattern**:
+```python
+# DROP old before creating new
+cur.execute("""DROP PROCEDURE IF EXISTS my_proc(VARCHAR, VARCHAR, TIMESTAMP, UUID)""")
+cur.execute("CREATE OR REPLACE PROCEDURE my_proc (VARCHAR, VARCHAR, TIMESTAMP, UUID, INT)")
+``` 
+
+---
+
+**Last Updated**: 2026-06-06  
 **Files Referenced**: 
 - `TRANSACTION_GUIDELINES.md`
 - `COALESCE_GUIDELINES.md`
