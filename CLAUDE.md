@@ -98,11 +98,23 @@ async def delete_week(year: int = Query(...), week: int = Query(...)):
 ### Game Score Schema Design
 
 *   **Core Lesson**: Denormalize match results (`home_score`, `away_score`) into the `games` table rather than relying exclusively on fact tables (`team_game_stats`).
-*   **Why**: Fetching the score requires JOINs to the fact tables. Keeping it in the dimension table makes the primary display/API significantly faster.
-*   **Rule**: The `games` table must serve as the authoritative source for game metadata and final scores.
-
-### Game Score Schema Design
-
-*   **Core Lesson**: Denormalize match results (`home_score`, `away_score`) into the `games` table rather than relying exclusively on fact tables (`team_game_stats`).
 *   **Why**: Fetching the score requires JOINs to the fact tables. Keeping it in the dimension table makes the primary display/API significantly faster and prevents schema coupling issues.
 *   **Rule**: The `games` table must serve as the authoritative source for game metadata and final scores. Always update `games` alongside stats.
+
+### Game Scores Ingestion Pipeline Chain
+
+*   **Flow**: `ESPN API → parsers.py (extract score) → models.py (NormalizedGame.home_score/away_score) → engine.py (pass score param) → db_writer.py (upsert_game $8/$9) → stored procedure
+
+*   **Updated files**:
+    *   `ingest/espn/parsers.py` — extracts `home_team.score` and `away_team.score` and assigns to `home_score`/`away_score` in `NormalizedGame`
+    *   `ingest/espn/models.py` — `home_score: int | None` and `away_score: int | None` added to `NormalizedGame`
+    *   `ingest/engine.py` — passes `home_score` and `away_score` as positional args `$8` and `$9` to `db_writer.upsert_game()`
+    *   `ingest/db_writer.py` — `upsert_game()` accepts `home_score`/`away_score` and calls `usp_upsert_game` with `CALL usp_upsert_game($1..$9)`
+    *   `DB/procedures.sql` — `usp_upsert_game` signature updated: `CALL usp_upsert_game($1, $2, $3, $4, $5, $6, $7, $8, $9)` where `$6` = home_score, `$7` = away_score
+
+*   **Important**: The frontend retrieves `home_score` and `away_score` directly from `games` table columns with no joins to fact tables. The column order in the `games` table schema is: `season_year, week, home_code, away_code, time_tbd, status_code, game_date, home_score, away_score, id, home_team_id, away_team_id, espn_id`.
+
+### UI — Game ID Column
+
+*   **Location**: `ingest/frontend/index.html` — table column added after Status (`<th>Game ID</th>`) with display row `x-text="game.id.substring(0, 8)"`
+*   **Purpose**: Shows the internal database UUID truncated to 8 chars (not the ESPN `espn_id`). Enables frontend to pass DB UUID to `loadGameStats(game.id)` for stats tab navigation.

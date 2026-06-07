@@ -1,11 +1,5 @@
 {
   "env": {
-    "ANTHROPIC_AUTH_TOKEN": "not-needed",
-    "ANTHROPIC_BASE_URL": "http://localhost:11434",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "qwen3.5:9b",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "qwen3.5:27b",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "qwen3.6",
-    "ANTHROPIC_MODEL": "qwen3.6",
     "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "-1",
     "CLAUDE_CODE_ATTRIBUTION_HEADER": "",
     "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "131072",
@@ -27,7 +21,7 @@
       "Bash(python season_ingest.py --season 2025 --debug)"
     ]
   },
-  "model": "qwen3-coder:30b",
+  "model": "",
   "disabledMcpjsonServers": [
     "serena"
   ]
