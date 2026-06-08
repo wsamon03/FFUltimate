@@ -1,3 +1,40 @@
+
+### User API — Service Architecture
+
+*   **Dual-Service Pattern**: The system uses two separate services:
+    *   **user_api (port 8001)** — OAuth/JWT auth, roster/favorites
+    *   **ingest/api (port 8002)** — ESPN data ETL, game stats retrieval
+*   **Why separate**: User management requires request-heavy auth handling; different security boundaries.
+*   **Service boundary**: Both services share the same PostgreSQL database but serve different purposes.
+
+### Cross-Dependency Pattern (user_api → public)
+
+*   **Constraint**: Tables in user_api schema reference public.players/public.teams.
+*   **Impact**: Tight coupling — if public.players/teams schema changes, user_api breaks.
+*   **Tables**: roster_players, weekly_lineups, favorites reference public.players/public.teams.
+*   **Rationale**: Keeps fantasy roster data separate from ESPN data layers.
+
+### UUID vs. ESPN ID Pattern
+
+*   **Pattern**: Frontend uses internal DB UUIDs (truncated to 8 chars) for navigation.
+*   **Why**: ESPN IDs are 9-digit strings scoped to ESPN API. UUIDs are globally unique, stable.
+*   **Pattern**: game.id.substring(0, 8) passed to route navigation.
+
+### Lineup Replace Semantics
+
+*   **Behavior**: Weekly lineups use replace semantics (clear old, then insert new).
+*   **SQL**: leagues_router.py
+    async with conn.transaction():
+        await conn.execute("DELETE FROM user_api.weekly_lineups WHERE ...", team_id, season, week)
+        for slot in slots:
+            await conn.execute("INSERT INTO user_api.weekly_lineups ...", team_id, slot.player_id, season, week, slot.slot_position)
+*   **Why**: Matches fantasy manager mental model.
+
+### User API — Stored Procedure Pattern
+
+*   **usp_add_league_team_owner**: Uses ON CONFLICT to handle multi-owner teams.
+*   **usp_create_league_team**: Auto-assigns creator as commissioner.
+*   **fn_get_user_favorites**: Uses UNION ALL to combine player and team favorites.
 # CLAUDE.md
 
 ## Project Constraints & ESPN API Specifics
@@ -114,7 +151,15 @@ async def delete_week(year: int = Query(...), week: int = Query(...)):
 
 *   **Important**: The frontend retrieves `home_score` and `away_score` directly from `games` table columns with no joins to fact tables. The column order in the `games` table schema is: `season_year, week, home_code, away_code, time_tbd, status_code, game_date, home_score, away_score, id, home_team_id, away_team_id, espn_id`.
 
-### UI — Game ID Column
 
-*   **Location**: `ingest/frontend/index.html` — table column added after Status (`<th>Game ID</th>`) with display row `x-text="game.id.substring(0, 8)"`
-*   **Purpose**: Shows the internal database UUID truncated to 8 chars (not the ESPN `espn_id`). Enables frontend to pass DB UUID to `loadGameStats(game.id)` for stats tab navigation.
+### User API — Service Architecture
+
+*   **Dual-Service Pattern**: The system uses two separate services:
+    *   **user_api (port 8001)** — OAuth/JWT auth, league/team management, roster/favorites
+    *   **ingest/api (port 8002)** — ESPN data ETL, game stats retrieval, ingestion pipeline
+*   **Why separate**: User management requires request-heavy auth handling; data ingestion is batch-heavy. Also different security boundaries (OAuth tokens vs. internal API).
+*   **Service boundary**: Both services share the same PostgreSQL database but serve different purposes.
+
+### Cross-Dependency Pattern (user_api → public)
+
+*   **Constraint**: Tables in user_api schema reference public.players/public.teams.
