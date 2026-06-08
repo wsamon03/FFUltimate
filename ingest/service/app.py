@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
 import asyncpg
-
+#
 # Load environment variables from .env file
 load_dotenv()
 
@@ -129,37 +129,23 @@ Note: Week should be 1-18 (no 19 or higher)."""
         return {"status": "error", "message": "Delete failed", "error": str(e)}
 
 
+
 @app.delete("/api/delete/game", response_model=dict)
-async def delete_game(game_id: str = Query(...)):
+async def delete_game(event_id: str = Query(...)):
     """Delete all data for a specific internal game ID (UUID)."""
     global POOL
-    try:
+    async with POOL.acquire() as conn:
         try:
-            # Try getting by UUID directly
-            game = await conn.fetchrow("SELECT id, espn_id FROM games WHERE id = $1", game_id)
-        except Exception:
-            # Fallback: Try ESPN ID as backup
-            import re
-            match = re.search(r"\d+", game_id)
-            if match:
-                espn_id = match.group()
-                game = await conn.fetchrow("SELECT id FROM games WHERE espn_id = $1", espn_id)
-            else:
-                return {"status": "warning", "message": "Game not found in database."}
-            
-            if not game:
-                return {"status": "warning", "message": "Game not found in database.", "details": {"game_id": game_id}}
-            
+            game = await conn.fetchrow("SELECT id FROM games WHERE id = $1", event_id)
             game_id = game["id"]
             
-            # Delete in FK order: player_stats -> team_stats -> games
             await conn.execute("DELETE FROM player_game_stats WHERE game_id = $1", game_id)
             await conn.execute("DELETE FROM team_game_stats WHERE game_id = $1", game_id)
             await conn.execute("DELETE FROM games WHERE id = $1", game_id)
-            
-        return {"status": "success", "message": f"Game {game_id.hex} deleted"}
-    except Exception as e:
-        logger.error(f"Failed to delete game {game_id}: {e}")
-        return {"status": "error", "message": "Delete failed", "error": str(e)}
+            return {"status": "success", "message": f"Game {game_id.hex} deleted"}
+        except Exception:
+            return {"status": "warning", "message": "Game not found"}
+
+
 
 
