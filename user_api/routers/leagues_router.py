@@ -150,17 +150,16 @@ async def rename_team(
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            UPDATE user_api.league_teams
-            SET name = $1, updated_at = NOW()
-            WHERE id = $2 AND league_id = $3
-            RETURNING id, league_id, created_by_id, name, created_at
-            """,
+        await conn.execute(
+            "CALL user_api.usp_rename_team($1, $2, $3)",
             body.name,
             team_id,
             league_id,
         )
+    row = await conn.fetchrow(
+        "SELECT id, name, created_by_id, name, created_at FROM user_api.league_teams WHERE id = $1",
+        team_id,
+    )
     if not row:
         raise HTTPException(status_code=404, detail="Team not found")
     owner_count = await _owner_count(pool, team_id)

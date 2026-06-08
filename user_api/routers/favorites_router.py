@@ -38,7 +38,7 @@ async def add_player_favorite(
     async with pool.acquire() as conn:
         try:
             await conn.execute(
-                "INSERT INTO user_api.favorites (user_id, player_id) VALUES ($1, $2)",
+                "CALL user_api.usp_add_favorite($1, 'player', $2, null)",
                 current_user.user_id,
                 body.player_id,
             )
@@ -61,13 +61,11 @@ async def remove_player_favorite(
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
-        result = await conn.execute(
-            "DELETE FROM user_api.favorites WHERE user_id = $1 AND player_id = $2",
+        await conn.execute(
+            "CALL user_api.usp_remove_favorite($1, 'player', $2)",
             current_user.user_id,
             player_id,
         )
-    if result == "DELETE 0":
-        raise HTTPException(status_code=404, detail="Favorite not found")
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +81,7 @@ async def add_team_favorite(
     async with pool.acquire() as conn:
         try:
             await conn.execute(
-                "INSERT INTO user_api.favorites (user_id, team_id) VALUES ($1, $2)",
+                "CALL user_api.usp_add_favorite($1, 'team', null, $2)",
                 current_user.user_id,
                 body.team_id,
             )
@@ -106,10 +104,8 @@ async def remove_team_favorite(
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
-        result = await conn.execute(
-            "DELETE FROM user_api.favorites WHERE user_id = $1 AND team_id = $2",
+        await conn.execute(
+            "CALL user_api.usp_remove_favorite($1, 'team', null, $2)",
             current_user.user_id,
             team_id,
         )
-    if result == "DELETE 0":
-        raise HTTPException(status_code=404, detail="Favorite not found")

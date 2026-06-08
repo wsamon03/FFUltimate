@@ -314,3 +314,220 @@ BEGIN
     ORDER BY added_at DESC;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ---------------------------------------------------------------------------
+-- USER API — AD-HOC SQL CONVERSIONS
+-- ---------------------------------------------------------------------------
+
+-- Insert/replace a roster player with conflict handling (includes slot_position, not used by ingest)
+CREATE OR REPLACE FUNCTION user_api.usp_add_roster_player(
+    p_league_team_id UUID,
+    p_player_id      UUID,
+    p_slot_position  VARCHAR(10)
+) RETURNS UUID AS $$
+DECLARE
+    v_roster_id UUID;
+BEGIN
+    INSERT INTO user_api.roster_players (league_team_id, player_id, slot_position)
+    VALUES (p_league_team_id, p_player_id, p_slot_position)
+    ON CONFLICT (league_team_id, player_id) DO UPDATE
+        SET slot_position = p_slot_position,
+            added_at = NOW()
+    RETURNING id INTO v_roster_id;
+
+    RETURN v_roster_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Drop a roster player by league team and player ID
+CREATE OR REPLACE PROCEDURE user_api.usp_drop_roster_player(
+    p_league_team_id UUID,
+    p_player_id      UUID
+) AS $$
+BEGIN
+    DELETE FROM user_api.roster_players
+    WHERE league_team_id = p_league_team_id
+      AND player_id = p_player_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add/replace a lineup slot in a transaction (used for full lineup replacement)
+CREATE OR REPLACE FUNCTION user_api.usp_replace_lineup_player(
+    p_league_team_id UUID,
+    p_player_id      UUID,
+    p_season_year    INT,
+    p_week           INT,
+    p_slot_position  VARCHAR(10)
+) RETURNS UUID AS $$
+DECLARE
+    v_lineup_id UUID;
+BEGIN
+    -- Delete existing slot for this game
+    DELETE FROM user_api.weekly_lineups
+    WHERE league_team_id = p_league_team_id
+      AND season_year = p_season_year
+      AND week = p_week
+      AND slot_position = p_slot_position;
+
+    -- Insert new slot (no conflict handling required)
+    INSERT INTO user_api.weekly_lineups
+        (league_team_id, player_id, season_year, week, slot_position)
+    VALUES (p_league_team_id, p_player_id, p_season_year, p_week, p_slot_position)
+    RETURNING id INTO v_lineup_id;
+
+    RETURN v_lineup_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add all lineup slots at once (transaction is caller's responsibility, use with usp_replace_lineup_player for each slot)
+CREATE OR REPLACE FUNCTION user_api.usp_add_lineup_players(
+    p_league_team_id UUID,
+    p_player_ids    UUID[],
+    p_season_year    INT[],
+    p_week           INT[],
+    p_slot_positions VARCHAR[]
+) RETURNS VOID AS $$
+DECLARE
+    i INTEGER;
+BEGIN
+    FOR i IN 1..CARDINALITY(p_player_ids) LOOP
+        CALL user_api.usp_replace_lineup_player(
+            p_league_team_id, p_player_ids[i], p_season_year[i], p_week[i], p_slot_positions[i]
+        );
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Search players by name/position/team with search operators
+CREATE OR REPLACE FUNCTION user_api.fn_search_players(
+    p_name       VARCHAR,
+    p_position   VARCHAR,
+    p_team_id    UUID
+)
+RETURNS TABLE (
+    player_id   UUID,
+    espn_id     VARCHAR,
+    name        VARCHAR,
+    position_code VARCHAR,
+    team_abbr   VARCHAR,
+    team_name   VARCHAR
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        p.id,
+        p.espn_id,
+        p.name,
+        p.position_code,
+        t.abbr,
+        t.full_name
+    FROM public.players p
+    LEFT JOIN public.teams t ON t.id = p.team_id
+    WHERE ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%')
+      AND ($2::text IS NULL OR p.position_code = $2)
+      AND ($3::uuid IS NULL OR p.team_id = $3)
+    ORDER BY p.name;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Get a single player by UUID
+CREATE OR REPLACE FUNCTION user_api.fn_get_player(
+    p_player_id UUID
+)
+RETURNS TABLE (
+    player_id   UUID,
+    espn_id     VARCHAR,
+    name        VARCHAR,
+    position_code VARCHAR,
+    team_abbr   VARCHAR,
+    team_name   VARCHAR
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        p.id,
+        p.espn_id,
+        p.name,
+        p.position_code,
+        t.abbr,
+        t.full_name
+    FROM public.players p
+    LEFT JOIN public.teams t ON t.id = p.team_id
+    WHERE p.id = p_player_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Remove team owner (for DELETE endpoint)
+CREATE OR REPLACE PROCEDURE user_api.usp_remove_owner(
+    p_league_team_id UUID,
+    p_user_id        UUID
+) AS $$
+BEGIN
+    DELETE FROM user_api.league_team_owners
+    WHERE league_team_id = p_league_team_id
+      AND user_id = p_user_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Add favorite (player or team) with conflict handling
+CREATE OR REPLACE PROCEDURE user_api.usp_add_favorite(
+    p_user_id      UUID,
+    p_kind         TEXT, -- 'player' or 'team'
+    p_target_id    UUID,
+    p_target_name  VARCHAR
+) AS $$
+BEGIN
+    INSERT INTO user_api.favorites
+        (user_id, kind, player_id, team_id, target_name, extra)
+    VALUES
+        (p_user_id, p_kind, p_target_id, NULLIF(p_target_id, ''), p_target_name, NULL)
+    ON CONFLICT (user_id, p_kind, COALESCE(player_id, team_id)) DO UPDATE
+        SET target_name = NULLIF(p_target_name, ''),
+            extra = NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Remove favorite (player or team) by kind, user_id, and target_id
+CREATE OR REPLACE PROCEDURE user_api.usp_remove_favorite(
+    p_user_id      UUID,
+    p_kind         TEXT, -- 'player' or 'team'
+    p_target_id    UUID
+) AS $$
+BEGIN
+    DELETE FROM user_api.favorites
+    WHERE user_id = p_user_id
+      AND kind = p_kind
+      AND (p_kind = 'player' AND COALESCE(player_id, team_id) = p_target_id)
+      AND (p_kind = 'team' AND COALESCE(player_id, team_id) = p_target_id);
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- Rename a league team (called by rename_team endpoint)
+CREATE OR REPLACE FUNCTION user_api.usp_rename_team(
+    p_new_name VARCHAR(100),
+    p_league_team_id UUID,
+    p_league_id UUID
+) RETURNS UUID AS $$
+DECLARE
+    v_team_id UUID;
+BEGIN
+    -- First verify the team exists and belongs to the league
+    SELECT id INTO v_team_id FROM user_api.league_teams
+    WHERE id = p_league_team_id
+      AND league_id = p_league_id;
+    
+    IF v_team_id IS NULL THEN
+        RAISE EXCEPTION 'Team not found or league mismatch';
+    END IF;
+    
+    -- Update name and return team_id (not uuid, the procedure returns UUID)
+    UPDATE user_api.league_teams
+    SET name = p_new_name, updated_at = NOW()
+    WHERE id = v_team_id
+    RETURNING id INTO v_team_id;
+    
+    RETURN v_team_id;
+END;
+$$ LANGUAGE plpgsql;
+

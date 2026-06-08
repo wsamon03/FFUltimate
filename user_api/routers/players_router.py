@@ -23,16 +23,7 @@ async def search_players(
 ) -> list[dict[str, Any]]:
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            """
-            SELECT p.id, p.espn_id, p.name, p.position_code, t.abbr AS team_abbr, t.full_name AS team_name
-            FROM players p
-            LEFT JOIN teams t ON t.id = p.team_id
-            WHERE ($1::text IS NULL OR p.name ILIKE '%' || $1 || '%')
-              AND ($2::text IS NULL OR p.position_code = $2)
-              AND ($3::uuid IS NULL OR p.team_id = $3)
-            ORDER BY p.name
-            LIMIT 100
-            """,
+            "CALL user_api.fn_search_players($1, $2, $3)",
             name,
             position,
             team_id,
@@ -48,12 +39,7 @@ async def get_player(
 ) -> dict[str, Any]:
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
-            """
-            SELECT p.id, p.espn_id, p.name, p.position_code, t.abbr AS team_abbr, t.full_name AS team_name
-            FROM players p
-            LEFT JOIN teams t ON t.id = p.team_id
-            WHERE p.id = $1
-            """,
+            "CALL user_api.fn_get_player($1)",
             player_id,
         )
     if not row:
