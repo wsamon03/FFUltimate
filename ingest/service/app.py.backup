@@ -130,36 +130,31 @@ Note: Week should be 1-18 (no 19 or higher)."""
 
 
 @app.delete("/api/delete/game", response_model=dict)
-async def delete_game(game_id: str = Query(...)):
-    """Delete all data for a specific internal game ID (UUID)."""
+async def delete_game(event_id: str = Query(...)):
+    """Delete all data for a specific ESPN event ID."""
     global POOL
     try:
-        try:
-            # Try getting by UUID directly
-            game = await conn.fetchrow("SELECT id, espn_id FROM games WHERE id = $1", game_id)
-        except Exception:
-            # Fallback: Try ESPN ID as backup
-            import re
-            match = re.search(r"\d+", game_id)
-            if match:
-                espn_id = match.group()
-                game = await conn.fetchrow("SELECT id FROM games WHERE espn_id = $1", espn_id)
-            else:
-                return {"status": "warning", "message": "Game not found in database."}
+        if not event_id or '-' not in event_id:
+            return {"status": "error", "message": "Invalid ESPN event ID format"}
+        
+        async with POOL.acquire() as conn:
+            game = await conn.fetchrow(
+                "SELECT id FROM games WHERE espn_id = $1", event_id
+            )
             
             if not game:
-                return {"status": "warning", "message": "Game not found in database.", "details": {"game_id": game_id}}
+                return {"status": "warning", "message": "Game not found in database.", "details": {"event_id": event_id, "games_matching": 0}}
+
+            game_id = game['id']
             
-            game_id = game["id"]
-            
-            # Delete in FK order: player_stats -> team_stats -> games
+            # Use the game's internal UUID (not espn_id) for deletion,
+            # ensuring we only delete records for this exact game
+            # Delete player and team stats first (foreign key safety)
             await conn.execute("DELETE FROM player_game_stats WHERE game_id = $1", game_id)
             await conn.execute("DELETE FROM team_game_stats WHERE game_id = $1", game_id)
             await conn.execute("DELETE FROM games WHERE id = $1", game_id)
             
-        return {"status": "success", "message": f"Game {game_id.hex} deleted"}
+        return {"status": "success", "message": f"Game {event_id} deleted"}
     except Exception as e:
-        logger.error(f"Failed to delete game {game_id}: {e}")
+        logger.error(f"Failed to delete game {event_id}: {e}")
         return {"status": "error", "message": "Delete failed", "error": str(e)}
-
-
