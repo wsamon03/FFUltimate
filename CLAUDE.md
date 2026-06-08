@@ -163,3 +163,66 @@ async def delete_week(year: int = Query(...), week: int = Query(...)):
 ### Cross-Dependency Pattern (user_api → public)
 
 *   **Constraint**: Tables in user_api schema reference public.players/public.teams.
+
+### FastAPI Route & Import Patterns
+
+*   **Query Parameter Conflict**: FastAPI cannot combine `{event_id}` (path param) with `Query(...)` for the same parameter name
+    *   **Wrong**: `@app.delete("/api/delete/{event_id}", ...)` with `async def delete_game(event_id: str = Query(...)):`
+    *   **Correct**: Use `@app.delete("/api/delete/{event_id}", response_model=dict)` and let FastAPI auto-detect path param (no Query needed)
+    *   **Or**: Use `@app.delete("/api/delete", ...)` with `Query()` for query-only deletion
+
+*   **Import Placement**: Imports must be at module level, not inside exception handlers or function bodies
+    *   **Wrong**: `import re` inside `try: ... except: import re` block
+    *   **Correct**: `import re` at top of file with other imports
+
+*   **Route Import Order**: Standard imports first, then FastAPI imports, then lifespan decorator
+    ```python
+    # Standard imports first
+    import os
+    import logging
+    from contextlib import asynccontextmanager
+    from dotenv import load_dotenv
+    import asyncpg
+    
+    # FastAPI imports (after standard)
+    from fastapi import FastAPI, Depends, HTTPException, Query
+    from fastapi.middleware.cors import CORSMiddleware
+    from ingest.service.ingestion_router import router as ingestion_router
+    from ingest.service.retrieval_router import router as retrieval_router
+    
+    # Lifespan decorator
+    @app.on_event("startup")
+    async def on_startup()
+    ```
+
+*   **Function Indentation**: FastAPI route decorators require clean indentation without extra lines between decorator and function
+
+### Frontend (Alpine.js) Debugging
+
+*   **Missing Variable Reference**: JavaScript variable must match exactly (case-sensitive, property name)
+    *   **Symptom**: `Uncaught ReferenceError: variableName is not defined` in Alpine.js render functions
+    *   **Example**: Function uses `params.event_id` but undefined `gameId` exists
+    *   **Pattern**: Always reference from `params` object which contains the delete criteria
+    *   **Fix**: Changed from `gameId` to `params.event_id` in `performDeletion()` when it references `confirmDeletion()` variables
+
+### Full UUID Display Pattern
+
+*   **Use Case**: Show complete UUIDs in tables for easy UX when copying for API operations
+*   **Frontend**: Use `x-text="item.id"` instead of `x-text="item.id.substring(0, 8)"`
+*   **Example**: 
+    *   **Before**: Game ID column shows `37da815b` (truncated to 8 chars)
+    *   **After**: Game ID column shows `37da815b-0da4-404d-b142-3c89ee329548` (full UUID)
+*   **Benefit**: Users can copy the full UUID directly from the table to use in delete operations
+
+### Backend Service Restart Protocol
+
+*   **Working Directory**: Backend must be run from root directory (where `ingest/` is a package)
+*   **Running From Wrong Directory**: `ModuleNotFoundError: No module named 'ingest'` when running from `ingest/service/` directory
+*   **Proper Method**: Use `python -m uvicorn ingest.service.app:app --host 127.0.0.1 --port 8002 --reload` from repo root with `PYTHONPATH` set
+*   **Port 8002**: Backend runs on `http://localhost:8002`, frontend on `http://localhost:8000`
+
+### Database Import & Import Order
+
+*   **Placement**: All imports must be at module level
+*   **Exception Block Imports**: `import re` inside exception handlers is a bug that causes 422 validation errors
+*   **Order**: Standard imports (os, logging, asyncpg) → FastAPI imports (FastAPI, Query) → Lifespan decorators
