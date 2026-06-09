@@ -205,60 +205,6 @@
           </div>
         </div>
 
-        <!-- ================= DELETION TAB ================= -->
-        <div x-show="activeTab === 'deletion'" x-transition:enter="transition ease-out duration-200">
-          <div class="flex items-center gap-3 mb-3">
-            <i data-lucide="trash-2" class="w-6 h-6 text-red-400"></i>
-            <h2 class="text-2xl font-bold text-white">Data Deletion & Cleanup</h2>
-          </div>
-
-          <div class="mb-3 glass-panel p-4 border-l-4 border-red-400">
-            <p class="text-red-400 text-sm font-medium">⚠️ Warning: Deletion is destructive. You should only delete 2023 data or future seasons that haven't had ingestion runs yet.</p>
-          </div>
-
-          <!-- Game Deletion -->
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="mb-3 glass-panel rounded-xl p-6">
-            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <i data-lucide="square-football" class="w-4 h-4 text-primary"></i>
-              Delete Game
-            </h3>
-            <div class="flex items-end gap-3">
-              <input x-model="deletePendingParams.event_id" placeholder="Game ID (UUID)" class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-red-500/50 transition-colors">
-              <button @click="confirmDelete('game', deletePendingParams)" :disabled="!deletePendingParams.event_id || isDeleting" class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors justify-end">Delete</button>
-            </div>
-          </div>
-
-          <!-- Week Deletion -->
-          <div class="mb-3 glass-panel rounded-xl p-6">
-            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <i data-lucide="calendar" class="w-4 h-4 text-primary"></i>
-              Delete Week
-            </h3>
-            <div class="flex items-end gap-3">
-              <input x-model.number="deletePendingParams.year" type="number" min="1" max="2029" placeholder="Year" class="w-24 bg-surface border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
-              <span class="text-slate-500 mb-3">-</span>
-              <input x-model.number="deletePendingParams.week" type="number" min="1" max="18" placeholder="Week" class="w-20 bg-surface border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
-              <button @click="confirmDelete('week', deletePendingParams)" :disabled="!deletePendingParams.year || !deletePendingParams.week || isDeleting" class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors justify-end">Delete</button>
-            </div>
-          </div>
-
-          <!-- Season Deletion -->
-          <div class="mb-3 glass-panel rounded-xl p-6">
-            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-              <i data-lucide="trophy" class="w-4 h-4 text-primary"></i>
-              Delete Season
-            </h3>
-            <div class="flex items-end gap-3">
-              <input x-model.number="deletePendingParams.year" type="number" min="1" max="2029" placeholder="Season Year" class="flex-1 bg-surface border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
-              <button @click="confirmDelete('season', deletePendingParams)" :disabled="!deletePendingParams.year || isDeleting" class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors justify-end">Delete</button>
-          </div>
-        </div>
-
-
-
-        </div>
         <!-- ================= TEAMS TAB ================= -->
         <div x-show="activeTab === 'teams'" x-transition:enter="transition ease-out duration-200">
           <div class="flex items-center justify-between mb-6">
@@ -365,6 +311,60 @@
 </div>
 </div>
 
+        <!-- ================= DELETION TAB ================= -->
+        <div x-show="activeTab === 'deletion'" x-transition:enter="transition ease-out duration-200">
+          <div class="flex items-center gap-3 mb-3">
+            <i data-lucide="trash-2" class="w-6 h-6 text-red-400"></i>
+            <h2 class="text-2xl font-bold text-white">Data Deletion & Cleanup</h2>
+          </div>
+
+          <div class="mb-3 glass-panel p-4 border-l-4 border-red-400">
+            <p class="text-red-400 text-sm font-medium">⚠️ Warning: Deletion is destructive. You should only delete 2023 data or future seasons that haven't had ingestion runs yet.</p>
+          </div>
+
+          <!-- Game Deletion -->
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="mb-3 glass-panel rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <i data-lucide="square-football" class="w-4 h-4 text-primary"></i>
+              Delete Game
+            </h3>
+            <div class="flex items-end gap-3">
+              <input x-model="deletePendingParams.event_id" placeholder="Game ID (UUID)" class="flex-1 bg-slate-900 border border-slate-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-red-500/50 transition-colors">
+              <button @click="confirmDelete('game', deletePendingParams)" :disabled="!deletePendingParams.event_id || isDeleting" class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors justify-end">Delete</button>
+            </div>
+          </div>
+
+          <!-- Week Deletion -->
+          <div class="mb-3 glass-panel rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <i data-lucide="calendar" class="w-4 h-4 text-primary"></i>
+              Delete Week
+            </h3>
+            <div class="flex items-end gap-3">
+              <input x-model.number="deletePendingParams.year" type="number" min="1" max="2029" placeholder="Year" class="w-24 bg-surface border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
+              <span class="text-slate-500 mb-3">-</span>
+              <input x-model.number="deletePendingParams.week" type="number" min="1" max="18" placeholder="Week" class="w-20 bg-surface border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
+              <button @click="confirmDelete('week', deletePendingParams)" :disabled="!deletePendingParams.year || !deletePendingParams.week || isDeleting" class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors justify-end">Delete</button>
+            </div>
+          </div>
+
+          <!-- Season Deletion -->
+          <div class="mb-3 glass-panel rounded-xl p-6">
+            <h3 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <i data-lucide="trophy" class="w-4 h-4 text-primary"></i>
+              Delete Season
+            </h3>
+            <div class="flex items-end gap-3">
+              <input x-model.number="deletePendingParams.year" type="number" min="1" max="2029" placeholder="Season Year" class="flex-1 bg-surface border border-border rounded px-3 py-2 text-sm focus:outline-none focus:border-primary/50">
+              <button @click="confirmDelete('season', deletePendingParams)" :disabled="!deletePendingParams.year || isDeleting" class="px-4 py-2 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors justify-end">Delete</button>
+          </div>
+        </div>
+
+
+
+        </div>
         <!-- ================= STATS TAB ================= -->
         <div x-show="activeTab === 'stats'" x-transition:enter="transition ease-out duration-200">
           <div class="flex items-center gap-4 mb-6 p-6 glass-panel rounded-xl">
@@ -518,210 +518,3 @@
           </div>
         </div>
     </main>
-
-    <!-- APP DATA AND LOGIC -->
-    <script>
-      // ==========================================
-      // CONFIGURATION - UPDATE THIS URL
-      // ==========================================
-      // Ensure your FastAPI server (uvicorn) is running and CORS allows localhost:*
-      const BASE_URL = "http://localhost:8002";
-      // ==========================================
-
-      function nflApp() {
-        return {
-          sidebarOpen: false,
-          loadingTask: false,
-          activeTab: 'ingest',
-          showConfig: false,
-          testingConnection: false,
-          connectionStatus: null,
-          tasks: [],
-          teamsList: [],
-          gameList: [],
-          statsData: null,
-          inputs: { game: '', week: { year: '2024' }, season: { year: '2022' } },
-          filters: { dateStart: '', dateEnd: '', category: 'passing' },
-          statsFilters: { category: 'passing', selectedGame: null },
-          viewStatsMode: null,
-
-          // Deletion state
-          deleteType: null,
-          deletePendingParams: {},
-          deleteResult: null,
-          isDeleting: false,
-          showConfirmDelete: false,
-
-          tabs: [
-            { id: 'ingest', name: 'Ingestion', icon: 'zap' },
-            { id: 'teams', name: 'Teams', icon: 'users' },
-            { id: 'games', name: 'Games', icon: 'calendar' },
-            { id: 'stats', name: 'Stats & Fantasy', icon: 'bar-chart-2' },
-            { id: 'deletion', name: 'Data Deletion', icon: 'trash-2' },
-          ],
-
-          init() {
-            if (typeof lucide !== 'undefined') {
-              lucide.createIcons();
-            } else {
-              setTimeout(() => lucide.createIcons(), 200);
-            }
-            this.fetchTeams();
-            this.fetchGames();
-            this.refreshTasks();
-            setInterval(() => this.refreshTasks(), 3000);
-          },
-
-          refreshTasks() {
-            fetch(`${BASE_URL}/api/ingest/tasks`)
-              .then(res => res.json())
-              .then(data => { this.tasks = Object.values(data); })
-              .catch(e => console.error("Fetch tasks error:", e));
-          },
-
-          // --- Ingestion Logic ---
-          async createTask(type) {
-            let url;
-
-            if (type === 'game') {
-              if(!this.inputs.game) return alert("Please enter an Event ID");
-              url = `${BASE_URL}/api/ingest/game?event_id=${this.inputs.game}`;
-            } else if (type === 'week') {
-              if(!this.inputs.week.year || !this.inputs.week.week) return alert("Please enter Year and Week");
-              url = `${BASE_URL}/api/ingest/week?year=${this.inputs.week.year}&week=${this.inputs.week.week}`;
-            } else {
-              if(!this.inputs.season.year) return alert("Please enter a Season Year");
-              url = `${BASE_URL}/api/ingest/season?year=${this.inputs.season.year}`;
-            }
-
-            try {
-              this.loadingTask = true;
-              await fetch(url, { method: 'POST' });
-              // UI updates automatically via refreshTasks() polling every 3s
-            } catch (e) {
-              console.error(e);
-              alert("Could not reach API. Check console and CORS settings.");
-            } finally {
-              this.loadingTask = false;
-            }
-          },
-
-          // --- Data Fetching ---
-          async fetchTeams() {
-            try {
-              const res = await fetch(`${BASE_URL}/api/teams`);
-              this.teamsList = await res.json();
-            } catch (e) { console.error("Fetch Teams Error", e); }
-          },
-
-          async fetchGames() {
-            let url = `${BASE_URL}/api/games?`;
-            const queryParams = [];
-            if(this.filters.dateStart) queryParams.push(`date_start=${this.filters.dateStart}`);
-            if(this.filters.dateEnd) queryParams.push(`date_end=${this.filters.dateEnd}`);
-
-            if (queryParams.length > 0) {
-                url += queryParams.join("&");
-            }
-
-            try {
-              const res = await fetch(url);
-              this.gameList = await res.json();
-            } catch (e) { console.error("Fetch Games Error", e); }
-          },
-
-          async loadLeaderboard(id) {
-            if(!id) { this.viewStatsMode = null; return; }
-            this.viewStatsMode = 'leaderboard';
-            this.statsFilters.selectedGame = id;
-            this.loadStatsData(id, 'leaderboard', this.statsFilters.category);
-          },
-
-          async loadPlayerStats(id) {
-            if(!id) return;
-            this.viewStatsMode = 'player';
-            this.statsData = null;
-
-            // Use the fantasy endpoint specifically for the nice table layout
-            const res = await fetch(`${BASE_URL}/fantasy/${id}`);
-            this.statsData = await res.json();
-          },
-
-          async loadGameStats(id) {
-            this.activeTab = 'stats';
-            this.filters.category = 'passing';
-            this.loadLeaderboard(id);
-          },
-
-          async loadStatsData(id, type, category) {
-            this.statsData = null;
-            const url = `${BASE_URL}/api/stats/leaderboard/${id}?category=${category}`;
-            const res = await fetch(url);
-            this.statsData = await res.json();
-          },
-
-          async testConnection() {
-            this.testingConnection = true;
-            this.connectionStatus = null;
-            try {
-              const res = await fetch(`${BASE_URL}/api/teams`);
-              if(res.ok) {
-                this.connectionStatus = 'success';
-                this.fetchTeams();
-              }
-            } catch(e) { this.connectionStatus = 'error'; }
-            this.testingConnection = false;
-          },
-
-          // --- Deletion Methods ---
-          async confirmDelete(type, params) {
-            this.deleteType = type;
-            this.deletePendingParams = params;
-            this.showConfirmDelete = true;
-          },
-
-          async performDeletion() {
-            this.isDeleting = true;
-            const { type, params } = {
-              type: this.deleteType,
-              params: this.deletePendingParams
-            };
-
-            let url;
-            if (type === 'game') {
-              url = `${BASE_URL}/api/delete/game?event_id=${encodeURIComponent(params.event_id)}`;
-            } else if (type === 'week') {
-              url = `${BASE_URL}/api/delete/week?year=${params.year}&week=${params.week}`;
-            } else if (type === 'season') {
-              url = `${BASE_URL}/api/delete/season?year=${params.year}`;
-            }
-
-            try {
-              const res = await fetch(url, { method: 'DELETE' });
-              const data = await res.json();
-              if (data.status === 'success') {
-                this.deleteResult = 'success';
-                alert(data.message || 'Data deleted successfully!');
-              } else if (data.status === 'warning') {
-                this.deleteResult = 'warning';
-                alert('No data found for this combination:\n' + JSON.stringify(data.details));
-              } else {
-                this.deleteResult = 'error';
-                alert('Delete failed: ' + (data.message || 'Unknown error'));
-              }
-            } catch(e) {
-              this.deleteResult = 'error';
-              alert('Network error: ' + e.message);
-            } finally {
-              this.showConfirmDelete = false;
-              this.isDeleting = false;
-              this.deletePendingParams = {};
-              this.deleteType = null;
-              this.deleteResult = null;
-            }
-          }
-        }
-      }
-    </script>
-  </body>
-</html>
