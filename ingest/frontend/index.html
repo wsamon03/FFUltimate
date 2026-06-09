@@ -518,3 +518,210 @@
           </div>
         </div>
     </main>
+
+    <!-- APP DATA AND LOGIC -->
+    <script>
+      // ==========================================
+      // CONFIGURATION - UPDATE THIS URL
+      // ==========================================
+      // Ensure your FastAPI server (uvicorn) is running and CORS allows localhost:*
+      const BASE_URL = "http://localhost:8002";
+      // ==========================================
+
+      function nflApp() {
+        return {
+          sidebarOpen: false,
+          loadingTask: false,
+          activeTab: 'ingest',
+          showConfig: false,
+          testingConnection: false,
+          connectionStatus: null,
+          tasks: [],
+          teamsList: [],
+          gameList: [],
+          statsData: null,
+          inputs: { game: '', week: { year: '2024' }, season: { year: '2022' } },
+          filters: { dateStart: '', dateEnd: '', category: 'passing' },
+          statsFilters: { category: 'passing', selectedGame: null },
+          viewStatsMode: null,
+
+          // Deletion state
+          deleteType: null,
+          deletePendingParams: {},
+          deleteResult: null,
+          isDeleting: false,
+          showConfirmDelete: false,
+
+          tabs: [
+            { id: 'ingest', name: 'Ingestion', icon: 'zap' },
+            { id: 'teams', name: 'Teams', icon: 'users' },
+            { id: 'games', name: 'Games', icon: 'calendar' },
+            { id: 'stats', name: 'Stats & Fantasy', icon: 'bar-chart-2' },
+            { id: 'deletion', name: 'Data Deletion', icon: 'trash-2' },
+          ],
+
+          init() {
+            if (typeof lucide !== 'undefined') {
+              lucide.createIcons();
+            } else {
+              setTimeout(() => lucide.createIcons(), 200);
+            }
+            this.fetchTeams();
+            this.fetchGames();
+            this.refreshTasks();
+            setInterval(() => this.refreshTasks(), 3000);
+          },
+
+          refreshTasks() {
+            fetch(`${BASE_URL}/api/ingest/tasks`)
+              .then(res => res.json())
+              .then(data => { this.tasks = Object.values(data); })
+              .catch(e => console.error("Fetch tasks error:", e));
+          },
+
+          // --- Ingestion Logic ---
+          async createTask(type) {
+            let url;
+
+            if (type === 'game') {
+              if(!this.inputs.game) return alert("Please enter an Event ID");
+              url = `${BASE_URL}/api/ingest/game?event_id=${this.inputs.game}`;
+            } else if (type === 'week') {
+              if(!this.inputs.week.year || !this.inputs.week.week) return alert("Please enter Year and Week");
+              url = `${BASE_URL}/api/ingest/week?year=${this.inputs.week.year}&week=${this.inputs.week.week}`;
+            } else {
+              if(!this.inputs.season.year) return alert("Please enter a Season Year");
+              url = `${BASE_URL}/api/ingest/season?year=${this.inputs.season.year}`;
+            }
+
+            try {
+              this.loadingTask = true;
+              await fetch(url, { method: 'POST' });
+              // UI updates automatically via refreshTasks() polling every 3s
+            } catch (e) {
+              console.error(e);
+              alert("Could not reach API. Check console and CORS settings.");
+            } finally {
+              this.loadingTask = false;
+            }
+          },
+
+          // --- Data Fetching ---
+          async fetchTeams() {
+            try {
+              const res = await fetch(`${BASE_URL}/api/teams`);
+              this.teamsList = await res.json();
+            } catch (e) { console.error("Fetch Teams Error", e); }
+          },
+
+          async fetchGames() {
+            let url = `${BASE_URL}/api/games?`;
+            const queryParams = [];
+            if(this.filters.dateStart) queryParams.push(`date_start=${this.filters.dateStart}`);
+            if(this.filters.dateEnd) queryParams.push(`date_end=${this.filters.dateEnd}`);
+
+            if (queryParams.length > 0) {
+                url += queryParams.join("&");
+            }
+
+            try {
+              const res = await fetch(url);
+              this.gameList = await res.json();
+            } catch (e) { console.error("Fetch Games Error", e); }
+          },
+
+          async loadLeaderboard(id) {
+            if(!id) { this.viewStatsMode = null; return; }
+            this.viewStatsMode = 'leaderboard';
+            this.statsFilters.selectedGame = id;
+            this.loadStatsData(id, 'leaderboard', this.statsFilters.category);
+          },
+
+          async loadPlayerStats(id) {
+            if(!id) return;
+            this.viewStatsMode = 'player';
+            this.statsData = null;
+
+            // Use the fantasy endpoint specifically for the nice table layout
+            const res = await fetch(`${BASE_URL}/fantasy/${id}`);
+            this.statsData = await res.json();
+          },
+
+          async loadGameStats(id) {
+            this.activeTab = 'stats';
+            this.filters.category = 'passing';
+            this.loadLeaderboard(id);
+          },
+
+          async loadStatsData(id, type, category) {
+            this.statsData = null;
+            const url = `${BASE_URL}/api/stats/leaderboard/${id}?category=${category}`;
+            const res = await fetch(url);
+            this.statsData = await res.json();
+          },
+
+          async testConnection() {
+            this.testingConnection = true;
+            this.connectionStatus = null;
+            try {
+              const res = await fetch(`${BASE_URL}/api/teams`);
+              if(res.ok) {
+                this.connectionStatus = 'success';
+                this.fetchTeams();
+              }
+            } catch(e) { this.connectionStatus = 'error'; }
+            this.testingConnection = false;
+          },
+
+          // --- Deletion Methods ---
+          async confirmDelete(type, params) {
+            this.deleteType = type;
+            this.deletePendingParams = params;
+            this.showConfirmDelete = true;
+          },
+
+          async performDeletion() {
+            this.isDeleting = true;
+            const { type, params } = {
+              type: this.deleteType,
+              params: this.deletePendingParams
+            };
+
+            let url;
+            if (type === 'game') {
+              url = `${BASE_URL}/api/delete/game?event_id=${encodeURIComponent(params.event_id)}`;
+            } else if (type === 'week') {
+              url = `${BASE_URL}/api/delete/week?year=${params.year}&week=${params.week}`;
+            } else if (type === 'season') {
+              url = `${BASE_URL}/api/delete/season?year=${params.year}`;
+            }
+
+            try {
+              const res = await fetch(url, { method: 'DELETE' });
+              const data = await res.json();
+              if (data.status === 'success') {
+                this.deleteResult = 'success';
+                alert(data.message || 'Data deleted successfully!');
+              } else if (data.status === 'warning') {
+                this.deleteResult = 'warning';
+                alert('No data found for this combination:\n' + JSON.stringify(data.details));
+              } else {
+                this.deleteResult = 'error';
+                alert('Delete failed: ' + (data.message || 'Unknown error'));
+              }
+            } catch(e) {
+              this.deleteResult = 'error';
+              alert('Network error: ' + e.message);
+            } finally {
+              this.showConfirmDelete = false;
+              this.isDeleting = false;
+              this.deletePendingParams = {};
+              this.deleteType = null;
+              this.deleteResult = null;
+            }
+          }
+        }
+      }
+    </script>
+  </body>
+</html>
