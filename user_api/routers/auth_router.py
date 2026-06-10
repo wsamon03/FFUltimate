@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 
 import asyncpg
 
+from user_api.config import settings
 from user_api.dependencies import UserContext, get_current_user, get_pool
 from user_api.models.auth import TokenResponse, UserProfile
 from user_api.services import jwt_service, oauth_service, user_service
@@ -17,18 +18,25 @@ _REFRESH_COOKIE = "refresh_token"
 
 
 def _set_refresh_cookie(response: Response, token: str, expires_days: int) -> None:
+    is_localhost = "localhost" in settings.FRONTEND_URL or "127.0.0.1" in settings.FRONTEND_URL
     response.set_cookie(
         key=_REFRESH_COOKIE,
         value=token,
         httponly=True,
-        secure=True,
-        samesite="strict",
+        secure=not is_localhost,
+        samesite="lax" if is_localhost else "strict",
         max_age=expires_days * 86400,
     )
 
 
 def _clear_refresh_cookie(response: Response) -> None:
-    response.delete_cookie(key=_REFRESH_COOKIE, httponly=True, secure=True, samesite="strict")
+    is_localhost = "localhost" in settings.FRONTEND_URL or "127.0.0.1" in settings.FRONTEND_URL
+    response.delete_cookie(
+        key=_REFRESH_COOKIE,
+        httponly=True,
+        secure=not is_localhost,
+        samesite="lax" if is_localhost else "strict"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +58,7 @@ async def login(provider: str):
 # Callback — exchange code for tokens, issue JWT + refresh cookie
 # ---------------------------------------------------------------------------
 
-@router.get("/callback", response_model=TokenResponse)
+@router.get("/callback")
 async def callback(
     request: Request,
     response: Response,
@@ -88,9 +96,10 @@ async def callback(
         provider=user_info["provider"],
     )
 
-    from user_api.config import settings
-    _set_refresh_cookie(response, raw_refresh, settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
-    return TokenResponse(access_token=access_token)
+    redirect_url = f"{settings.FRONTEND_URL}/auth/callback?access_token={access_token}"
+    redirect_response = RedirectResponse(url=redirect_url, status_code=302)
+    _set_refresh_cookie(redirect_response, raw_refresh, settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
+    return redirect_response
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +142,6 @@ async def refresh(
         provider=user_row["provider"],
     )
 
-    from user_api.config import settings
     _set_refresh_cookie(response, new_raw, settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
     return TokenResponse(access_token=access_token)
 
