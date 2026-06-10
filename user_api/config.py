@@ -1,7 +1,10 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Explicitly load .env from repo root, not current working directory
+repo_root = Path(__file__).parent.parent
+load_dotenv(repo_root / ".env")
 
 
 class Settings:
@@ -49,9 +52,12 @@ class Settings:
         "http://localhost:8001/auth/callback?provider=microsoft",
     )
 
-    # CORS — space-separated list of allowed origins
+    # Frontend URL (used for OAuth redirect)
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+    # CORS — comma-separated list of allowed origins
     CORS_ORIGINS: list[str] = os.getenv(
-        "CORS_ORIGINS", "http://localhost:3000"
+        "CORS_ORIGINS", "http://localhost:5173"
     ).split(",")
 
 
