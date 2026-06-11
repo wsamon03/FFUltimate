@@ -59,7 +59,30 @@ const games = ref<any[]>([])
 async function loadGames() {
   loading.value = true
   try {
-    games.value = await getGames(filters.value.season, filters.value.week)
+    const allGames = await getGames(filters.value.season, filters.value.week)
+    
+    // If a team is selected, filter client-side by matching the abbreviated code or team ID
+    if (filters.value.team) {
+      const teamFilter = filters.value.team.toLowerCase()
+      games.value = allGames.filter(g => {
+        const homeAbbr = (g.home_team_abbr || '')
+        const awayAbbr = (g.away_team_abbr || '')
+        const homeId = (g.home_team_id || '').toLowerCase()
+        const awayId = (g.away_team_id || '').toLowerCase()
+        
+        // Exact match on abbreviations first
+        if (homeAbbr.toLowerCase() === teamFilter || awayAbbr.toLowerCase() === teamFilter) {
+          return true
+        }
+        // Fallback to exact ID match if abbr is missing
+        return homeId === teamFilter || awayId === teamFilter
+      })
+    } else {
+      games.value = allGames
+    }
+  } catch (err) {
+    console.error('Failed to load NFL games:', err)
+    games.value = []
   } finally {
     loading.value = false
   }

@@ -123,16 +123,20 @@ END;
 $$;
 
 -- Retrieve all games
+-- Drop and recreate if signature changed
+DROP FUNCTION IF EXISTS fn_get_all_games();
 CREATE OR REPLACE FUNCTION fn_get_all_games()
 RETURNS TABLE(
     id UUID, espn_id VARCHAR, status_code VARCHAR, game_date TIMESTAMP,
-    home_team_id UUID, away_team_id UUID, week INT, season_year INT
+    home_team_id UUID, away_team_id UUID, week INT, season_year INT,
+    home_score INT, away_score INT
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
     RETURN QUERY SELECT g.id, g.espn_id, g.status_code, g.game_date,
-        g.home_team_id, g.away_team_id, g.week, g.season_year
+        g.home_team_id, g.away_team_id, g.week, g.season_year,
+        COALESCE(g.home_score, 0), COALESCE(g.away_score, 0)
     FROM games g
     ORDER BY g.game_date DESC, g.week DESC;
 END;
@@ -759,5 +763,32 @@ BEGIN
              ts.off_redzone_att, ts.off_redzone_td
     ORDER BY ts.pts_total DESC
     LIMIT p_limit;
+END;
+$$;
+
+-- Retrieve games filtered by season (with full team codes for frontend filtering)
+-- Drop and recreate if signature changed
+DROP FUNCTION IF EXISTS fn_get_games_by_season(p_season INT);
+CREATE OR REPLACE FUNCTION fn_get_games_by_season(p_season INT)
+RETURNS TABLE(
+    id UUID, espn_id VARCHAR, status_code VARCHAR, game_date TIMESTAMP,
+    home_team_id UUID, away_team_id UUID, week INT, season_year INT,
+    home_team_abbr VARCHAR, home_team_name VARCHAR,
+    away_team_abbr VARCHAR, away_team_name VARCHAR,
+    home_score INT, away_score INT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY SELECT g.id, g.espn_id, g.status_code, g.game_date,
+        g.home_team_id, g.away_team_id, g.week, g.season_year,
+        t_home.abbr, t_home.full_name,
+        t_away.abbr, t_away.full_name,
+        COALESCE(g.home_score, 0), COALESCE(g.away_score, 0)
+    FROM games g
+    JOIN teams t_home ON g.home_team_id = t_home.id
+    JOIN teams t_away ON g.away_team_id = t_away.id
+    WHERE g.season_year = p_season
+    ORDER BY g.game_date DESC, g.week DESC;
 END;
 $$;

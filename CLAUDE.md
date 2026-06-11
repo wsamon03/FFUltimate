@@ -1,16 +1,16 @@
 
-### User API — Service Architecture
+### User API â€” Service Architecture
 
 *   **Dual-Service Pattern**: The system uses two separate services:
-    *   **user_api (port 8001)** — OAuth/JWT auth, roster/favorites
-    *   **ingest/api (port 8002)** — ESPN data ETL, game stats retrieval
+    *   **user_api (port 8001)** â€” OAuth/JWT auth, roster/favorites
+    *   **ingest/api (port 8002)** â€” ESPN data ETL, game stats retrieval
 *   **Why separate**: User management requires request-heavy auth handling; different security boundaries.
 *   **Service boundary**: Both services share the same PostgreSQL database but serve different purposes.
 
-### Cross-Dependency Pattern (user_api → public)
+### Cross-Dependency Pattern (user_api â†’ public)
 
 *   **Constraint**: Tables in user_api schema reference public.players/public.teams.
-*   **Impact**: Tight coupling — if public.players/teams schema changes, user_api breaks.
+*   **Impact**: Tight coupling â€” if public.players/teams schema changes, user_api breaks.
 *   **Tables**: roster_players, weekly_lineups, favorites reference public.players/public.teams.
 *   **Rationale**: Keeps fantasy roster data separate from ESPN data layers.
 
@@ -30,7 +30,7 @@
             await conn.execute("INSERT INTO user_api.weekly_lineups ...", team_id, slot.player_id, season, week, slot.slot_position)
 *   **Why**: Matches fantasy manager mental model.
 
-### User API — Stored Procedure Pattern
+### User API â€” Stored Procedure Pattern
 
 *   **usp_add_league_team_owner**: Uses ON CONFLICT to handle multi-owner teams.
 *   **usp_create_league_team**: Auto-assigns creator as commissioner.
@@ -60,9 +60,9 @@ When querying the NFL shortcut API endpoint (`/apis/site/v2/sports/football/nfl/
 *   **Zero-Row Detection**: `DELETE` commands **always return HTTP 200** even when zero rows are affected. Always verify with `SELECT COUNT(*)` before `DELETE`.
     *   **Pattern**: `SELECT COUNT(*) FROM table WHERE condition` BEFORE `DELETE FROM table WHERE condition`
     *   **Response Contract**:
-        *   HTTP 200 + `status: "success"` → Data existed and was deleted
-        *   HTTP 200 + `status: "warning"` → No data found for deletion
-        *   HTTP 500 + `status: "error"` → Operation failed
+        *   HTTP 200 + `status: "success"` â†’ Data existed and was deleted
+        *   HTTP 200 + `status: "warning"` â†’ No data found for deletion
+        *   HTTP 500 + `status: "error"` â†’ Operation failed
 *   **Never Delete Unless Matched**: Always run `COUNT(*)` check before deletion to avoid deleting records that don't exist
 
 ### FastAPI Query Parameter Validation
@@ -140,27 +140,27 @@ async def delete_week(year: int = Query(...), week: int = Query(...)):
 
 ### Game Scores Ingestion Pipeline Chain
 
-*   **Flow**: `ESPN API → parsers.py (extract score) → models.py (NormalizedGame.home_score/away_score) → engine.py (pass score param) → db_writer.py (upsert_game $8/$9) → stored procedure
+*   **Flow**: `ESPN API â†’ parsers.py (extract score) â†’ models.py (NormalizedGame.home_score/away_score) â†’ engine.py (pass score param) â†’ db_writer.py (upsert_game $8/$9) â†’ stored procedure
 
-*   **Updated files**:
-    *   `ingest/espn/parsers.py` — extracts `home_team.score` and `away_team.score` and assigns to `home_score`/`away_score` in `NormalizedGame`
-    *   `ingest/espn/models.py` — `home_score: int | None` and `away_score: int | None` added to `NormalizedGame`
-    *   `ingest/engine.py` — passes `home_score` and `away_score` as positional args `$8` and `$9` to `db_writer.upsert_game()`
-    *   `ingest/db_writer.py` — `upsert_game()` accepts `home_score`/`away_score` and calls `usp_upsert_game` with `CALL usp_upsert_game($1..$9)`
-    *   `DB/procedures.sql` — `usp_upsert_game` signature updated: `CALL usp_upsert_game($1, $2, $3, $4, $5, $6, $7, $8, $9)` where `$6` = home_score, `$7` = away_score
+*
+    *   `ingest/espn/parsers.py` â€” extracts `home_team.score` and `away_team.score` and assigns to `home_score`/`away_score` in `NormalizedGame`
+    *   `ingest/espn/models.py` â€” `home_score: int | None` and `away_score: int | None` added to `NormalizedGame`
+    *   `ingest/engine.py` â€” passes `home_score` and `away_score` as positional args `$8` and `$9` to `db_writer.upsert_game()`
+    *   `ingest/db_writer.py` â€” `upsert_game()` accepts `home_score`/`away_score` and calls `usp_upsert_game` with `CALL usp_upsert_game($1..$9)`
+    *   `DB/procedures.sql` â€” `usp_upsert_game` signature
 
 *   **Important**: The frontend retrieves `home_score` and `away_score` directly from `games` table columns with no joins to fact tables. The column order in the `games` table schema is: `season_year, week, home_code, away_code, time_tbd, status_code, game_date, home_score, away_score, id, home_team_id, away_team_id, espn_id`.
 
 
-### User API — Service Architecture
+### User API â€” Service Architecture
 
 *   **Dual-Service Pattern**: The system uses two separate services:
-    *   **user_api (port 8001)** — OAuth/JWT auth, league/team management, roster/favorites
-    *   **ingest/api (port 8002)** — ESPN data ETL, game stats retrieval, ingestion pipeline
+    *   **user_api (port 8001)** â€” OAuth/JWT auth, league/team management, roster/favorites
+    *   **ingest/api (port 8002)** â€” ESPN data ETL, game stats retrieval, ingestion pipeline
 *   **Why separate**: User management requires request-heavy auth handling; data ingestion is batch-heavy. Also different security boundaries (OAuth tokens vs. internal API).
 *   **Service boundary**: Both services share the same PostgreSQL database but serve different purposes.
 
-### Cross-Dependency Pattern (user_api → public)
+### Cross-Dependency Pattern (user_api â†’ public)
 
 *   **Constraint**: Tables in user_api schema reference public.players/public.teams.
 
@@ -225,4 +225,64 @@ async def delete_week(year: int = Query(...), week: int = Query(...)):
 
 *   **Placement**: All imports must be at module level
 *   **Exception Block Imports**: `import re` inside exception handlers is a bug that causes 422 validation errors
-*   **Order**: Standard imports (os, logging, asyncpg) → FastAPI imports (FastAPI, Query) → Lifespan decorators
+*   **Order**: Standard imports (os, logging, asyncpg) â†’ FastAPI imports (FastAPI, Query) â†’ Lifespan decorators
+
+## Project-Specific Data & Frontend Rules (2026-06-10 Session)
+
+### A. Rely on `/DB/procedures_retrieval.sql` for API Return Types
+**Lesson**: FastAPI endpoints are thin wrappers over PostgreSQL functions prefixed with `fn_get_...`. The `RETURNS TABLE` definition is the absolute source of truth for column names and data shapes. Changing DB columns without checking the procedure breaks the entire stats layer.
+
+**Rule 1**: **Always inspect `/DB/procedures_retrieval.sql`** before modifying or debugging a stats endpoint (e.g., `/api/stats/*`). Never guess schema fields based on variable names alone!
+
+### B. Strict Naming Conventions for Teams & Games
+**Lesson**: A single character in template keys like `team.abbreviation` vs `team.abbr` causes silent data failures (rendering `undefined`) or visual bugs across multiple components. 
+
+**Rule 2**: The codebase strictly uses `abbr`, `espn_id`, and `full_name` for teams, and `home_team_abbr` / `away_team_abbr` for games. Never use generic aliases like `nickname`, `code`, or `abbreviation`.
+
+### C. Client-Side Filtering is Mandatory for Game Queries
+**Lesson**: The backend `/api/stats/games` endpoint lacks a native database-level `?team=` filter parameter. Sending it in the query string results in 0-filtered game lists.
+
+**Rule 3**: Always fetch games by season/week first, then apply client-side filtering in Vue: 
+```js
+allGames.filter(g => 
+    g.home_team_abbr.toLowerCase().includes(filter) || 
+    g.away_team_abbr.toLowerCase().includes(filter)
+)
+```
+
+### D. Prevent `${undefined}` URL Injections in Vue Templates
+**Lesson**: Inside Vue templates, `undefined` properties inside template literals evaluate to the literal string `"undefined"`. Example: `:to="\`/nfl/games?team=${team.code}\`"` generates links like `/nfl/games?team=undefined`, which silently breaks filtering and routing.
+
+**Rule 4**: Always chain valid fallbacks when using object properties in dynamic Vue URLs or state strings (e.g., `team.abbr || team.id`). Verify the property exists before interpolating it!
+
+**Last
+
+## Project-Specific DB & API Conventions (2026-06-14 Session)
+
+### A. Safe Function Signature Updates in PostgreSQL
+**Lesson**: `CREATE OR REPLACE` fails in PostgreSQL if the new function's return type changes (e.g., adding new score columns to `fn_get_all_games()`). It throws `cannot change return type of existing function`.
+
+*Correct Pattern*: Always drop functions explicitly before recreating them if their signatures are changing:
+```sql
+DROP FUNCTION IF EXISTS fn_get_games_by_season(p_season INT);
+CREATE OR REPLACE FUNCTION fn_get_games_by_season(p_season INT)...
+```
+**Rule**: Never assume a bare `CREATE OR REPLACE` works for signature expansions in `DB/procedures_retrieval.sql`.
+
+### B. DB-to-UI Data Contract Alignment
+**Lesson**: A mismatch between a router's response shape and the UI template causes silent crashes or "Not Found" errors (e.g., `/game/{id}` returning `{ game_id: "...", teams: [...] }` vs `NflGameDetailPage.vue` expecting flat fields like `home_team_abbr`).
+
+**Rule**: Ensure FastAPI routes return the *exact* flattened column names expected by frontend templates. Do not wrap results in extra keys unless explicitly handled by theUI.
+
+### C. UUID Casting Safety in asyncpg
+**Lesson**: Implicit casting or casting DB columns (e.g., `g.id::text = $1`) in `asyncpg` can lead to silent data mismatches or strict type errors with FastAPI path parameters. 
+
+**Rule**: Always cast query parameters explicitly when they interact with strict DB types like UUIDs: `WHERE g.id = $1::uuid`.
+
+### D. SQL Join Column Aliasing Guardrail
+**Lesson**: When querying joins (e.g., getting team abbrs for a games list), always alias columns explicitly using the table prefix (e.g., `t_home.abbr AS home_team_abbr`). 
+
+**Rule**: Never rely on implicit column names from joins unless they are guaranteed to be unique across the entire query scope.
+
+
+**Last Updated**: 2026-06-10 21:50:33 UTC

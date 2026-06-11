@@ -9,7 +9,7 @@
       <div class="flex items-center justify-between gap-2">
         <!-- Away team -->
         <div class="flex-1 text-center">
-          <div class="text-lg font-bold" style="color: var(--color-text-primary)">{{ game.away_code }}</div>
+          <div class="text-lg font-bold" style="color: var(--color-text-primary)">{{ game.away_team_abbr }}</div>
           <div class="text-2xl font-bold mt-1" style="color: var(--color-text-primary)">
             {{ game.away_score ?? '—' }}
           </div>
@@ -19,7 +19,7 @@
 
         <!-- Home team -->
         <div class="flex-1 text-center">
-          <div class="text-lg font-bold" style="color: var(--color-text-primary)">{{ game.home_code }}</div>
+          <div class="text-lg font-bold" style="color: var(--color-text-primary)">{{ game.home_team_abbr }}</div>
           <div class="text-2xl font-bold mt-1" style="color: var(--color-text-primary)">
             {{ game.home_score ?? '—' }}
           </div>

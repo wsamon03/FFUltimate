@@ -17,7 +17,7 @@
 
         <div class="flex items-center justify-around py-4">
           <div class="text-center">
-            <div class="text-2xl font-bold" style="color: var(--color-text-primary)">{{ game.away_code }}</div>
+            <div class="text-2xl font-bold" style="color: var(--color-text-primary)">{{ game.away_team_abbr }}</div>
             <div class="text-5xl font-bold mt-2" style="color: var(--color-text-primary)">
               {{ game.away_score ?? '—' }}
             </div>
@@ -27,7 +27,7 @@
           <div class="text-2xl font-bold" style="color: var(--color-text-secondary)">@</div>
 
           <div class="text-center">
-            <div class="text-2xl font-bold" style="color: var(--color-text-primary)">{{ game.home_code }}</div>
+            <div class="text-2xl font-bold" style="color: var(--color-text-primary)">{{ game.home_team_abbr }}</div>
             <div class="text-5xl font-bold mt-2" style="color: var(--color-text-primary)">
               {{ game.home_score ?? '—' }}
             </div>
@@ -73,7 +73,8 @@ function formatDate(d?: string) {
 }
 
 onMounted(async () => {
-  try { game.value = await getGame(gameId) }
-  finally { loading.value = false }
+  try { game.value = await getGame(gameId).catch(e => { console.error('Failed to load game:', e); return null }) } catch(e) { 
+    console.error('API failed to load game:', e.response?.data || e.message)
+  } finally { loading.value = false }
 })
 </script>

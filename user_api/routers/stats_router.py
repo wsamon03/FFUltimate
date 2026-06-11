@@ -52,11 +52,26 @@ async def get_game(
     current_user: UserContext = Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ) -> dict[str, Any]:
-    async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT * FROM fn_get_game_both_teams($1)", game_id)
-    if not rows:
-        raise HTTPException(status_code=404, detail="Game not found")
-    return {"game_id": game_id, "teams": [dict(r) for r in rows]}
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT g.id, g.status_code, g.game_date, g.season_year, g.week,
+                       g.home_score, g.away_score, g.home_team_id, g.away_team_id,
+                       t_home.abbr AS home_team_abbr, t_away.abbr AS away_team_abbr
+                FROM games g
+                JOIN teams t_home ON g.home_team_id = t_home.id
+                JOIN teams t_away ON g.away_team_id = t_away.id
+                WHERE g.id = $1::uuid
+                """,
+                game_id
+            )
+        if not rows:
+            raise HTTPException(status_code=404, detail="Game not found")
+        return dict(rows[0])
+    except Exception as e:
+        logger.error(f"Error fetching game {game_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/player/{player_id}")

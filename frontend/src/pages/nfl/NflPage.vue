@@ -16,7 +16,7 @@
       <RouterLink
         v-for="team in teams"
         :key="team.id"
-        :to="`/nfl/games?team=${team.abbreviation || team.code}`"
+        :to="`/nfl/games?team=${team.abbr || team.id}`"
         class="block"
       >
         <AppCard hoverable>
@@ -25,10 +25,10 @@
               class="w-10 h-10 rounded-lg mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold"
               style="background: var(--color-primary)"
             >
-              {{ team.abbreviation || team.code || '?' }}
+              {{ team.abbr || team.espn_id || '?' }}
             </div>
             <div class="text-xs font-medium truncate" style="color: var(--color-text-primary)">
-              {{ team.nickname || team.name }}
+              {{ team.full_name || team.abbr }}
             </div>
           </div>
         </AppCard>

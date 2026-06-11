@@ -59,6 +59,10 @@ CREATE TABLE games (
     away_espn_id VARCHAR(50),
     home_team_id UUID REFERENCES teams(id),
     away_team_id UUID REFERENCES teams(id),
+    home_score INT DEFAULT 0,
+    away_score INT DEFAULT 0,
+    home_score INT DEFAULT 0,
+    away_score INT DEFAULT 0,
     week INT,
     season_year INT
 );
