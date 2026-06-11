@@ -609,7 +609,7 @@ CREATE OR REPLACE FUNCTION fn_get_game_passing_leaders(
     p_limit INT DEFAULT 20
 )
 RETURNS TABLE(
-    player_espn_id VARCHAR, player_name VARCHAR, position_code VARCHAR,
+    player_id UUID, player_espn_id VARCHAR, player_name VARCHAR, position_code VARCHAR,
     team_name VARCHAR, game_espn_id VARCHAR, game_date TIMESTAMP,
     pass_comp INT, pass_att INT, pass_yds INT, pass_td INT, pass_int INT, pass_sacked INT,
     ypc NUMERIC, pct NUMERIC, btr NUMERIC
@@ -643,7 +643,7 @@ CREATE OR REPLACE FUNCTION fn_get_game_rushing_leaders(
     p_limit INT DEFAULT 20
 )
 RETURNS TABLE(
-    player_espn_id VARCHAR, player_name VARCHAR, position_code VARCHAR,
+    player_id UUID, player_espn_id VARCHAR, player_name VARCHAR, position_code VARCHAR,
     team_name VARCHAR, game_espn_id VARCHAR, game_date TIMESTAMP,
     rush_att INT, rush_yds INT, rush_td INT,
     ypc NUMERIC
@@ -675,7 +675,7 @@ CREATE OR REPLACE FUNCTION fn_get_game_receiving_leaders(
     p_limit INT DEFAULT 20
 )
 RETURNS TABLE(
-    player_espn_id VARCHAR, player_name VARCHAR, position_code VARCHAR,
+    player_id UUID, player_espn_id VARCHAR, player_name VARCHAR, position_code VARCHAR,
     team_name VARCHAR, game_espn_id VARCHAR, game_date TIMESTAMP,
     rec_receptions INT, rec_targets INT, rec_yds INT, rec_td INT,
     ypr NUMERIC, rtc NUMERIC
@@ -711,7 +711,7 @@ CREATE OR REPLACE FUNCTION fn_get_player_fantasy_stats(
     p_player_id UUID DEFAULT NULL
 )
 RETURNS TABLE(
-    player_espn_id VARCHAR, player_name VARCHAR, position_code VARCHAR,
+    player_id UUID, player_espn_id VARCHAR, player_name VARCHAR, position_code VARCHAR,
     team_name VARCHAR,
     season_year INT, week INT, game_date TIMESTAMP,
     total_yards NUMERIC,
@@ -780,4 +780,4 @@ BEGIN
            WHEN pgs.ret_kick_no > 0 THEN 1 WHEN pgs.ret_punt_no > 0 THEN 1
            WHEN pgs.p_no > 0 THEN 1 WHEN pgs.def_solo > 0 THEN 1 ELSE 0 END) > 0;
 END;
-$$;
+$

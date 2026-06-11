@@ -103,11 +103,22 @@ async def get_leaderboard(
     current_user: UserContext = Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ) -> list[dict[str, Any]]:
-    # Exact mapping so Vue doesn't crash looking for 'pass_yards' when DB gives 'pass_yds'!
+    # Exact column mapping — these names MUST match what fn_get_game_*_leaders returns!
     alias_map = {
-        "passing": ["p_id", "player_espn_id", "player_name", "position_code", "team_nm", "game_espn_id", "game_date", "pass_comp", "pass_att", "pass_yds as pass_yards", "pass_td as pass_tds", "pass_int as interceptions", "pass_sacked", "ypc", "pct", "btr"],
-        "rushing": ["p_id", "player_espn_id", "player_name", "position_code", "team_nm", "game_espn_id", "game_date", "rush_att as rush_attempts", "rush_yds as rush_yards", "rush_td as rush_tds", "ypc"],
-        "receiving": ["p_id", "player_espn_id", "player_name", "position_code", "team_nm", "game_espn_id", "game_date", "rec_receptions as receptions", "rec_targets", "rec_yds as rec_yards", "rec_td as rec_tds", "ypr", "rtc"]
+        "passing": ["player_id", "player_espn_id", "player_name", "position_code",
+                     "team_name AS team_nm", "game_espn_id", "game_date",
+                     "pass_comp", "pass_att", "pass_yds AS pass_yards",
+                     "pass_td AS pass_tds", "pass_int AS interceptions", "pass_sacked",
+                     "ypc", "pct", "btr"],
+        "rushing": ["player_id", "player_espn_id", "player_name", "position_code",
+                     "team_name AS team_nm", "game_espn_id", "game_date",
+                     "rush_att AS rush_attempts", "rush_yds AS rush_yards",
+                     "rush_td AS rush_tds", "ypc"],
+        "receiving": ["player_id", "player_espn_id", "player_name", "position_code",
+                       "team_name AS team_nm", "game_espn_id", "game_date",
+                       "rec_receptions AS receptions", "rec_targets",
+                       "rec_yds AS rec_yards", "rec_td AS rec_tds",
+                       "ypr", "rtc"]
     }
 
     fn_map = {
