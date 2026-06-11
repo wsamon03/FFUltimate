@@ -36,7 +36,7 @@
             {{ row.player_name || row.player_id }}
           </RouterLink>
         </td>
-        <td style="color: var(--color-text-secondary)">{{ row.team_code || '—' }}</td>
+        <td style="color: var(--color-text-secondary)">{{ row.team_nm || '—' }}</td>
         <td v-for="col in activeCols" :key="col.key" style="color: var(--color-text-primary)">
           {{ row[col.key] ?? '—' }}
         </td>

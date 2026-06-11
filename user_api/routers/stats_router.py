@@ -103,16 +103,27 @@ async def get_leaderboard(
     current_user: UserContext = Depends(get_current_user),
     pool: asyncpg.Pool = Depends(get_pool),
 ) -> list[dict[str, Any]]:
+    # Exact mapping so Vue doesn't crash looking for 'pass_yards' when DB gives 'pass_yds'!
+    alias_map = {
+        "passing": ["p_id", "player_espn_id", "player_name", "position_code", "team_nm", "game_espn_id", "game_date", "pass_comp", "pass_att", "pass_yds as pass_yards", "pass_td as pass_tds", "pass_int as interceptions", "pass_sacked", "ypc", "pct", "btr"],
+        "rushing": ["p_id", "player_espn_id", "player_name", "position_code", "team_nm", "game_espn_id", "game_date", "rush_att as rush_attempts", "rush_yds as rush_yards", "rush_td as rush_tds", "ypc"],
+        "receiving": ["p_id", "player_espn_id", "player_name", "position_code", "team_nm", "game_espn_id", "game_date", "rec_receptions as receptions", "rec_targets", "rec_yds as rec_yards", "rec_td as rec_tds", "ypr", "rtc"]
+    }
+
     fn_map = {
         "passing": "fn_get_game_passing_leaders",
         "rushing": "fn_get_game_rushing_leaders",
         "receiving": "fn_get_game_receiving_leaders",
     }
+
     fn_name = fn_map.get(category)
     if not fn_name:
         raise HTTPException(status_code=400, detail="category must be passing, rushing, or receiving")
+
+    columns_str = ",".join(alias_map[category])
     async with pool.acquire() as conn:
-        rows = await conn.fetch(f"SELECT * FROM {fn_name}($1)", game_id)
+        rows = await conn.fetch(f"SELECT {columns_str} FROM {fn_name}($1::uuid)", game_id)
+
     return [dict(r) for r in rows]
 
 
