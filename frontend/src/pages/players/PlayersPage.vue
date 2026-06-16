@@ -51,50 +51,128 @@
         <tr>
           <th class="fav-cell"></th>
           <th class="helmet-cell"></th>
-          <th>Player</th>
-          <th>Pos</th>
-          <th>Team</th>
+          <th class="sortable-header" @click="setSortColumn('name')">
+            Player <span v-if="sortColumn === 'name'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          </th>
+          <th class="sortable-header" @click="setSortColumn('position_code')">
+            Pos <span v-if="sortColumn === 'position_code'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          </th>
+          <th class="sortable-header" @click="setSortColumn('team_abbr')">
+            Team <span v-if="sortColumn === 'team_abbr'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          </th>
           <template v-if="statType === 'offense'">
-            <th title="Completions">CMP</th>
-            <th title="Pass Attempts">ATT</th>
-            <th title="Pass Yards">YDS</th>
-            <th title="Pass TDs">TD</th>
-            <th title="Interceptions thrown">INT</th>
-            <th title="Rush Attempts">ATT</th>
-            <th title="Rush Yards">YDS</th>
-            <th title="Rush TDs">TD</th>
-            <th title="Receptions">REC</th>
-            <th title="Targets">TGT</th>
-            <th title="Receiving Yards">YDS</th>
-            <th title="Receiving TDs">TD</th>
+            <th class="sortable-header" title="Completions" @click="setSortColumn('pass_comp')">
+              CMP <span v-if="sortColumn === 'pass_comp'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Pass Attempts" @click="setSortColumn('pass_att')">
+              ATT <span v-if="sortColumn === 'pass_att'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Pass Yards" @click="setSortColumn('pass_yds')">
+              YDS <span v-if="sortColumn === 'pass_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Pass TDs" @click="setSortColumn('pass_td')">
+              TD <span v-if="sortColumn === 'pass_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Interceptions thrown" @click="setSortColumn('pass_int')">
+              INT <span v-if="sortColumn === 'pass_int'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Rush Attempts" @click="setSortColumn('rush_att')">
+              ATT <span v-if="sortColumn === 'rush_att'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Rush Yards" @click="setSortColumn('rush_yds')">
+              YDS <span v-if="sortColumn === 'rush_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Rush TDs" @click="setSortColumn('rush_td')">
+              TD <span v-if="sortColumn === 'rush_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Receptions" @click="setSortColumn('rec_receptions')">
+              REC <span v-if="sortColumn === 'rec_receptions'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Targets" @click="setSortColumn('rec_targets')">
+              TGT <span v-if="sortColumn === 'rec_targets'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Receiving Yards" @click="setSortColumn('rec_yds')">
+              YDS <span v-if="sortColumn === 'rec_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Receiving TDs" @click="setSortColumn('rec_td')">
+              TD <span v-if="sortColumn === 'rec_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
           </template>
           <template v-else-if="statType === 'defense'">
-            <th title="Solo Tackles">SOLO</th>
-            <th title="Assisted Tackles">AST</th>
-            <th title="Sacks">SACKS</th>
-            <th title="Tackles for Loss">TFL</th>
-            <th title="Passes Defensed">PD</th>
-            <th title="QB Hits">QB HIT</th>
-            <th title="Defensive TDs">DEF TD</th>
-            <th title="Interceptions">INT</th>
+            <th class="sortable-header" title="Solo Tackles" @click="setSortColumn('def_solo')">
+              SOLO <span v-if="sortColumn === 'def_solo'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Assisted Tackles" @click="setSortColumn('def_ast')">
+              AST <span v-if="sortColumn === 'def_ast'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Sacks" @click="setSortColumn('def_sacks')">
+              SACKS <span v-if="sortColumn === 'def_sacks'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Tackles for Loss" @click="setSortColumn('def_tfl')">
+              TFL <span v-if="sortColumn === 'def_tfl'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Passes Defensed" @click="setSortColumn('def_pd')">
+              PD <span v-if="sortColumn === 'def_pd'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="QB Hits" @click="setSortColumn('def_qb_hits')">
+              QB HIT <span v-if="sortColumn === 'def_qb_hits'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Defensive TDs" @click="setSortColumn('def_td')">
+              DEF TD <span v-if="sortColumn === 'def_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Interceptions" @click="setSortColumn('def_int')">
+              INT <span v-if="sortColumn === 'def_int'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
           </template>
           <template v-else>
-            <th title="Field Goals Made">FGM</th>
-            <th title="Field Goal Attempts">FGA</th>
-            <th title="Extra Points Made">XPM</th>
-            <th title="Extra Point Attempts">XPA</th>
-            <th title="Punts">PUNTS</th>
-            <th title="Punt Yards">P YDS</th>
-            <th title="Inside 20">IN20</th>
-            <th title="Touchbacks">TB</th>
-            <th title="Blocked Punts">BLK</th>
-            <th title="Longest Punt">LONG</th>
-            <th title="Kick Returns">KR</th>
-            <th title="Kick Return Yards">KR YDS</th>
-            <th title="Kick Return TDs">KR TD</th>
-            <th title="Punt Returns">PR</th>
-            <th title="Punt Return Yards">PR YDS</th>
-            <th title="Punt Return TDs">PR TD</th>
+            <th class="sortable-header" title="Field Goals Made" @click="setSortColumn('k_fg_make')">
+              FGM <span v-if="sortColumn === 'k_fg_make'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Field Goal Attempts" @click="setSortColumn('k_fg_att')">
+              FGA <span v-if="sortColumn === 'k_fg_att'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Extra Points Made" @click="setSortColumn('k_xp_make')">
+              XPM <span v-if="sortColumn === 'k_xp_make'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Extra Point Attempts" @click="setSortColumn('k_xp_att')">
+              XPA <span v-if="sortColumn === 'k_xp_att'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Punts" @click="setSortColumn('p_no')">
+              PUNTS <span v-if="sortColumn === 'p_no'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Punt Yards" @click="setSortColumn('p_yds')">
+              P YDS <span v-if="sortColumn === 'p_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Inside 20" @click="setSortColumn('p_in20')">
+              IN20 <span v-if="sortColumn === 'p_in20'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Touchbacks" @click="setSortColumn('p_tb')">
+              TB <span v-if="sortColumn === 'p_tb'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Blocked Punts" @click="setSortColumn('p_blk')">
+              BLK <span v-if="sortColumn === 'p_blk'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Longest Punt" @click="setSortColumn('p_long')">
+              LONG <span v-if="sortColumn === 'p_long'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Kick Returns" @click="setSortColumn('ret_kick_no')">
+              KR <span v-if="sortColumn === 'ret_kick_no'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Kick Return Yards" @click="setSortColumn('ret_kick_yds')">
+              KR YDS <span v-if="sortColumn === 'ret_kick_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Kick Return TDs" @click="setSortColumn('ret_kick_td')">
+              KR TD <span v-if="sortColumn === 'ret_kick_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Punt Returns" @click="setSortColumn('ret_punt_no')">
+              PR <span v-if="sortColumn === 'ret_punt_no'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Punt Return Yards" @click="setSortColumn('ret_punt_yds')">
+              PR YDS <span v-if="sortColumn === 'ret_punt_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header" title="Punt Return TDs" @click="setSortColumn('ret_punt_td')">
+              PR TD <span v-if="sortColumn === 'ret_punt_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
           </template>
         </tr>
       </template>
@@ -198,26 +276,60 @@ const players = ref<any[]>([])
 const positions = ref<string[]>([])
 const favorites = ref<Set<string>>(new Set())
 const togglingFav = ref<string | null>(null)
+const sortColumn = ref<string | null>(null)
+const sortDir = ref<'asc' | 'desc'>('desc')
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const sortedPlayers = computed(() => {
+  const list = [...players.value]
+
+  if (sortColumn.value) {
+    const col = sortColumn.value
+    list.sort((a, b) => {
+      const aVal = a[col]
+      const bVal = b[col]
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDir.value === 'asc' ? aVal - bVal : bVal - aVal
+      }
+      const aStr = String(aVal).toLowerCase()
+      const bStr = String(bVal).toLowerCase()
+      return sortDir.value === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr)
+    })
+    return list
+  }
+
+  // Default sorts when no column selected
   if (statType.value === 'defense') {
-    return [...players.value].sort((a, b) => {
+    return list.sort((a, b) => {
       const aScore = (a.def_solo ?? 0) + (a.def_ast ?? 0) + (a.def_sacks ?? 0) * 2
       const bScore = (b.def_solo ?? 0) + (b.def_ast ?? 0) + (b.def_sacks ?? 0) * 2
       return bScore - aScore
     })
   }
   if (statType.value === 'special') {
-    return [...players.value].sort((a, b) => {
+    return list.sort((a, b) => {
       const aScore = (a.p_yds ?? 0) + (a.k_fg_make ?? 0) * 50 + (a.ret_kick_yds ?? 0) + (a.ret_punt_yds ?? 0)
       const bScore = (b.p_yds ?? 0) + (b.k_fg_make ?? 0) * 50 + (b.ret_kick_yds ?? 0) + (b.ret_punt_yds ?? 0)
       return bScore - aScore
     })
   }
-  return players.value
+  return list // Offense: API already returns sorted by total yards desc
 })
+
+function setSortColumn(col: string) {
+  if (sortColumn.value === col) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortColumn.value = col
+    // Default to asc for text columns, desc for numeric
+    const sample = players.value[0]?.[col]
+    sortDir.value = typeof sample === 'string' ? 'asc' : 'desc'
+  }
+}
 
 async function loadStats() {
   loading.value = true
@@ -243,6 +355,11 @@ watch(query, () => {
 })
 
 watch([position, year], loadStats)
+
+watch(statType, () => {
+  sortColumn.value = null
+  sortDir.value = 'desc'
+})
 
 async function toggleFav(player: any) {
   togglingFav.value = player.player_id
@@ -283,5 +400,17 @@ onMounted(async () => {
   text-align: center;
   padding: 8px 6px;
   width: 36px;
+}
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+}
+.sortable-header:hover {
+  color: var(--color-primary) !important;
+}
+.sort-arrow {
+  margin-left: 2px;
+  opacity: 0.8;
 }
 </style>
