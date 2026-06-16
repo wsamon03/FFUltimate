@@ -117,33 +117,37 @@ def _parse_player_stats(labels: list, stats_arr: list, category_name: str) -> di
         stats["rec_td"] = parse_int(stat_map.get("TD"))
 
     elif "def" in category_lower:
-        stats["def_solo"] = parse_int(stat_map.get("SOLO"))
-        stats["def_ast"] = parse_int(stat_map.get("AST")) or 0
+        solo = parse_int(stat_map.get("SOLO")) or 0
+        tot = parse_int(stat_map.get("TOT")) or 0
+        stats["def_solo"] = solo
+        stats["def_ast"] = max(0, tot - solo)
         stats["def_sacks"] = parse_sacks(stat_map.get("SACKS", ""))
         stats["def_tfl"] = parse_int(stat_map.get("TFL"))
         stats["def_pd"] = parse_int(stat_map.get("PD"))
         stats["def_qb_hits"] = parse_int(stat_map.get("QB HTS"))
         stats["def_td"] = parse_int(stat_map.get("TD"))
+
+    elif category_lower == "interceptions":
         stats["def_int"] = parse_int(stat_map.get("INT"))
 
-    elif "kick return" in category_lower:
+    elif "kickreturn" in category_lower.replace(" ", ""):
         stats["ret_kick_no"] = parse_int(stat_map.get("NO"))
         stats["ret_kick_yds"] = parse_int(stat_map.get("YDS"))
         stats["ret_kick_td"] = parse_int(stat_map.get("TD"))
 
-    elif "punt return" in category_lower:
+    elif "puntreturn" in category_lower.replace(" ", ""):
         stats["ret_punt_no"] = parse_int(stat_map.get("NO"))
         stats["ret_punt_yds"] = parse_int(stat_map.get("YDS"))
         stats["ret_punt_td"] = parse_int(stat_map.get("TD"))
 
-    elif "kicking" in category_lower or "kick" in category_lower:
+    elif "kicking" in category_lower:
         fg = stat_map.get("FG", "")
-        if fg and "-" in fg:
+        if fg and ("/" in fg or "-" in fg):
             make, att = parse_fraction(fg)
             stats["k_fg_make"] = make
             stats["k_fg_att"] = att
         xp = stat_map.get("XP", "")
-        if xp and "-" in xp:
+        if xp and ("/" in xp or "-" in xp):
             make, att = parse_fraction(xp)
             stats["k_xp_make"] = make
             stats["k_xp_att"] = att
@@ -155,6 +159,6 @@ def _parse_player_stats(labels: list, stats_arr: list, category_name: str) -> di
         stats["p_tb"] = parse_int(stat_map.get("TB"))
         stats["p_fc"] = parse_int(stat_map.get("FC"))
         stats["p_blk"] = parse_int(stat_map.get("BLK"))
-        stats["p_long"] = parse_int(stat_map.get("Long"))
+        stats["p_long"] = parse_int(stat_map.get("LONG"))
 
     return stats
