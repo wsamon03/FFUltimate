@@ -6,6 +6,7 @@ const router = createRouter({
   routes: [
     // Auth
     { path: '/login', component: () => import('@/pages/LoginPage.vue') },
+    { path: '/register', component: () => import('@/pages/RegisterPage.vue') },
     { path: '/auth/callback', component: () => import('@/pages/AuthCallbackPage.vue') },
 
     // Authenticated shell

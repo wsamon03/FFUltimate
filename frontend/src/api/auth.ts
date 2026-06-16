@@ -21,3 +21,24 @@ export async function postRefresh(): Promise<{ access_token: string }> {
 export async function postLogout(): Promise<void> {
   await apiClient.post('/auth/logout')
 }
+
+export async function registerLocal(
+  email: string,
+  password: string,
+  displayName?: string,
+): Promise<{ access_token: string }> {
+  const { data } = await apiClient.post('/auth/register', {
+    email,
+    password,
+    display_name: displayName ?? null,
+  })
+  return data
+}
+
+export async function loginLocal(
+  email: string,
+  password: string,
+): Promise<{ access_token: string }> {
+  const { data } = await apiClient.post('/auth/login', { email, password })
+  return data
+}

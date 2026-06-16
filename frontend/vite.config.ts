@@ -12,6 +12,7 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8001',
       '/auth/login': 'http://localhost:8001',
+      '/auth/register': 'http://localhost:8001',
       '/auth/refresh': 'http://localhost:8001',
       '/auth/logout': 'http://localhost:8001',
       '/auth/me': 'http://localhost:8001',

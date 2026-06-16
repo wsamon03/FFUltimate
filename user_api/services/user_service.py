@@ -92,3 +92,43 @@ async def get_user_by_id(conn: asyncpg.Connection, user_id: UUID) -> asyncpg.Rec
         "SELECT id, provider, email, display_name, avatar_url FROM user_api.users WHERE id = $1 AND is_active = TRUE",
         user_id,
     )
+
+
+# ---------------------------------------------------------------------------
+# Local (email/password) auth helpers
+# ---------------------------------------------------------------------------
+
+async def register_local_user(
+    conn: asyncpg.Connection,
+    email: str,
+    display_name: str | None,
+    password_hash: str,
+) -> UUID:
+    """Insert a new local user + credential atomically. Returns the user UUID.
+
+    Raises asyncpg.UniqueViolationError if the email is already registered as a
+    local account — caller must catch and convert to HTTP 409.
+    """
+    user_id = await conn.fetchval(
+        "SELECT user_api.usp_register_local_user($1, $2, $3)",
+        email,
+        display_name,
+        password_hash,
+    )
+    return UUID(str(user_id))
+
+
+async def get_local_credentials(
+    conn: asyncpg.Connection,
+    email: str,
+) -> asyncpg.Record | None:
+    """Return (user_id, password_hash, is_active) for a local account, or None."""
+    return await conn.fetchrow(
+        "SELECT user_id, password_hash, is_active FROM user_api.fn_get_local_credentials($1)",
+        email,
+    )
+
+
+async def update_last_login(conn: asyncpg.Connection, user_id: UUID) -> None:
+    """Update last_login_at after a successful local login."""
+    await conn.execute("CALL user_api.usp_update_last_login($1)", user_id)

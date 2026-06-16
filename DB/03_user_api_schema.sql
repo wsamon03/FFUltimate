@@ -41,7 +41,19 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires  ON user_api.refresh_token
     WHERE revoked = FALSE;
 
 -- ---------------------------------------------------------------------------
--- 3. leagues
+-- 3. local_credentials
+-- Stores bcrypt password hashes for provider='local' users only.
+-- Kept separate from users so the OAuth schema stays clean.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_api.local_credentials (
+    user_id       UUID PRIMARY KEY REFERENCES user_api.users(id) ON DELETE CASCADE,
+    password_hash VARCHAR(72) NOT NULL,
+    created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ---------------------------------------------------------------------------
+-- 5. leagues
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_api.leagues (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -54,7 +66,7 @@ CREATE TABLE IF NOT EXISTS user_api.leagues (
 CREATE INDEX IF NOT EXISTS idx_leagues_created_by ON user_api.leagues(created_by);
 
 -- ---------------------------------------------------------------------------
--- 4. league_teams
+-- 6. league_teams
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_api.league_teams (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -69,7 +81,7 @@ CREATE INDEX IF NOT EXISTS idx_league_teams_league_id     ON user_api.league_tea
 CREATE INDEX IF NOT EXISTS idx_league_teams_created_by_id ON user_api.league_teams(created_by_id);
 
 -- ---------------------------------------------------------------------------
--- 5. league_team_owners
+-- 7. league_team_owners
 -- Many users can co-own a team. The team creator is auto-inserted as commissioner
 -- by usp_create_league_team.
 -- ---------------------------------------------------------------------------
@@ -89,7 +101,7 @@ CREATE INDEX IF NOT EXISTS idx_league_team_owners_team_id ON user_api.league_tea
 CREATE INDEX IF NOT EXISTS idx_league_team_owners_user_id ON user_api.league_team_owners(user_id);
 
 -- ---------------------------------------------------------------------------
--- 6. roster_players
+-- 8. roster_players
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_api.roster_players (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -103,7 +115,7 @@ CREATE TABLE IF NOT EXISTS user_api.roster_players (
 CREATE INDEX IF NOT EXISTS idx_roster_players_league_team_id ON user_api.roster_players(league_team_id);
 
 -- ---------------------------------------------------------------------------
--- 7. weekly_lineups
+-- 9. weekly_lineups
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_api.weekly_lineups (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -120,7 +132,7 @@ CREATE INDEX IF NOT EXISTS idx_weekly_lineups_team_week
     ON user_api.weekly_lineups(league_team_id, season_year, week);
 
 -- ---------------------------------------------------------------------------
--- 8. favorites
+-- 10. favorites
 -- One row per bookmark; exactly one of player_id / team_id is non-null.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_api.favorites (

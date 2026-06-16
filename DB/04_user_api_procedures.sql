@@ -62,6 +62,61 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ---------------------------------------------------------------------------
+-- LOCAL AUTH
+-- ---------------------------------------------------------------------------
+
+-- Register a new local (email/password) user and store the credential atomically.
+-- Returns the new user UUID.
+-- Raises a UniqueViolationError (23505) on (provider, provider_sub) if the email
+-- is already registered as a local account — caller converts to HTTP 409.
+CREATE OR REPLACE FUNCTION user_api.usp_register_local_user(
+    p_email         VARCHAR(255),
+    p_display_name  VARCHAR(255),
+    p_password_hash VARCHAR(72)
+) RETURNS UUID AS $$
+DECLARE
+    v_user_id UUID;
+BEGIN
+    INSERT INTO user_api.users (provider, provider_sub, email, display_name, avatar_url)
+    VALUES ('local', p_email, p_email, p_display_name, NULL)
+    RETURNING id INTO v_user_id;
+
+    INSERT INTO user_api.local_credentials (user_id, password_hash)
+    VALUES (v_user_id, p_password_hash);
+
+    RETURN v_user_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Return (user_id, password_hash, is_active) for a local login attempt.
+-- Returns no rows if the email does not exist as a local user.
+CREATE OR REPLACE FUNCTION user_api.fn_get_local_credentials(
+    p_email VARCHAR(255)
+) RETURNS TABLE (
+    user_id       UUID,
+    password_hash VARCHAR(72),
+    is_active     BOOLEAN
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT u.id, lc.password_hash, u.is_active
+    FROM user_api.users u
+    JOIN user_api.local_credentials lc ON lc.user_id = u.id
+    WHERE u.provider = 'local'
+      AND u.email    = p_email;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Update last_login_at after a successful local login.
+CREATE OR REPLACE PROCEDURE user_api.usp_update_last_login(
+    p_user_id UUID
+) AS $$
+BEGIN
+    UPDATE user_api.users SET last_login_at = NOW() WHERE id = p_user_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ---------------------------------------------------------------------------
 -- LEAGUES
 -- ---------------------------------------------------------------------------
 

@@ -49,11 +49,112 @@
         </svg>
         Continue with Microsoft
       </a>
+
+      <!-- Divider -->
+      <div class="flex items-center gap-3 py-1">
+        <div class="flex-1 h-px" style="background: var(--color-border)"></div>
+        <span class="text-xs" style="color: var(--color-text-secondary)">or</span>
+        <div class="flex-1 h-px" style="background: var(--color-border)"></div>
+      </div>
+
+      <!-- Email/password toggle -->
+      <div v-if="!showEmailForm">
+        <button
+          type="button"
+          @click="showEmailForm = true"
+          class="w-full px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors hover:bg-surface-hover"
+          style="border-color: var(--color-border); color: var(--color-text-primary)"
+        >
+          Sign in with Email
+        </button>
+      </div>
+
+      <!-- Email/password form -->
+      <form v-else @submit.prevent="handleEmailLogin" class="space-y-3">
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color: var(--color-text-secondary)">Email</label>
+          <input
+            v-model="email"
+            type="email"
+            autocomplete="email"
+            required
+            class="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-primary"
+            style="background: var(--color-bg); border-color: var(--color-border); color: var(--color-text-primary)"
+          />
+        </div>
+        <div>
+          <label class="block text-xs font-medium mb-1" style="color: var(--color-text-secondary)">Password</label>
+          <input
+            v-model="password"
+            type="password"
+            autocomplete="current-password"
+            required
+            class="w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-primary"
+            style="background: var(--color-bg); border-color: var(--color-border); color: var(--color-text-primary)"
+          />
+        </div>
+
+        <p v-if="error" class="text-xs text-red-400">{{ error }}</p>
+
+        <button
+          type="submit"
+          :disabled="loading"
+          class="w-full px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-60"
+          style="background: var(--color-primary)"
+        >
+          {{ loading ? 'Signing in…' : 'Sign In' }}
+        </button>
+
+        <button
+          type="button"
+          @click="showEmailForm = false; error = ''"
+          class="w-full text-xs text-center transition-colors"
+          style="color: var(--color-text-secondary)"
+        >
+          Back to other options
+        </button>
+      </form>
     </div>
+
+    <!-- Register link -->
+    <p class="text-center text-sm mt-4" style="color: var(--color-text-secondary)">
+      Don't have an account?
+      <RouterLink to="/register" class="font-medium hover:underline" style="color: var(--color-primary)">
+        Create one
+      </RouterLink>
+    </p>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useThemeStore } from '@/stores/theme'
+import { useAuthStore } from '@/stores/auth'
+import { loginLocal, getMe } from '@/api/auth'
+
 const themeStore = useThemeStore()
+const authStore = useAuthStore()
+const router = useRouter()
+
+const showEmailForm = ref(false)
+const email = ref('')
+const password = ref('')
+const error = ref('')
+const loading = ref(false)
+
+async function handleEmailLogin() {
+  loading.value = true
+  error.value = ''
+  try {
+    const { access_token } = await loginLocal(email.value, password.value)
+    authStore.setToken(access_token)
+    authStore.user = await getMe()
+    router.replace('/dashboard')
+  } catch (e: any) {
+    error.value = e.response?.data?.detail ?? 'Invalid email or password'
+  } finally {
+    loading.value = false
+  }
+}
 </script>

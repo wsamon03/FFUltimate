@@ -1,5 +1,6 @@
 import logging
 from datetime import timedelta, timezone, datetime
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -8,8 +9,8 @@ import asyncpg
 
 from user_api.config import settings
 from user_api.dependencies import UserContext, get_current_user, get_pool
-from user_api.models.auth import TokenResponse, UserProfile
-from user_api.services import jwt_service, oauth_service, user_service
+from user_api.models.auth import LoginRequest, RegisterRequest, TokenResponse, UserProfile
+from user_api.services import jwt_service, oauth_service, password_service, user_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -37,6 +38,99 @@ def _clear_refresh_cookie(response: Response) -> None:
         secure=not is_localhost,
         samesite="lax" if is_localhost else "strict"
     )
+
+
+# ---------------------------------------------------------------------------
+# Register — create a new local (email/password) account
+# ---------------------------------------------------------------------------
+
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register_local(
+    request: Request,
+    response: Response,
+    body: RegisterRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    pw_hash = password_service.hash_password(body.password)
+    async with pool.acquire() as conn:
+        try:
+            user_id = await user_service.register_local_user(
+                conn,
+                email=body.email,
+                display_name=body.display_name,
+                password_hash=pw_hash,
+            )
+        except asyncpg.UniqueViolationError:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="EMAIL_EXISTS")
+
+        raw_refresh = user_service.generate_refresh_token()
+        await user_service.store_refresh_token(
+            conn,
+            user_id=user_id,
+            raw_token=raw_refresh,
+            user_agent=request.headers.get("user-agent"),
+            ip_address=request.client.host if request.client else None,
+        )
+
+    access_token = jwt_service.issue_access_token(
+        user_id=user_id,
+        email=body.email,
+        provider="local",
+    )
+    _set_refresh_cookie(response, raw_refresh, settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
+    return TokenResponse(access_token=access_token)
+
+
+# ---------------------------------------------------------------------------
+# Login — authenticate with email + password (local accounts)
+# ---------------------------------------------------------------------------
+
+# Dummy hash paid on every request to prevent timing-based email enumeration.
+# Must be a syntactically valid bcrypt hash so checkpw processes it fully.
+_DUMMY_HASH = "$2b$12$invalidhashpaddingtomakeitlooklikeabcryptoutpu"
+
+@router.post("/login", response_model=TokenResponse)
+async def login_local(
+    request: Request,
+    response: Response,
+    body: LoginRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    _FAIL = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid email or password",
+    )
+
+    async with pool.acquire() as conn:
+        row = await user_service.get_local_credentials(conn, body.email)
+
+    # Always run bcrypt even when user not found — constant-time prevents email enumeration
+    stored_hash = row["password_hash"] if row else _DUMMY_HASH
+    password_ok = password_service.verify_password(body.password, stored_hash)
+
+    if not row or not password_ok or not row["is_active"]:
+        raise _FAIL
+
+    user_id = UUID(str(row["user_id"]))
+
+    async with pool.acquire() as conn:
+        await user_service.update_last_login(conn, user_id)
+        raw_refresh = user_service.generate_refresh_token()
+        await user_service.store_refresh_token(
+            conn,
+            user_id=user_id,
+            raw_token=raw_refresh,
+            user_agent=request.headers.get("user-agent"),
+            ip_address=request.client.host if request.client else None,
+        )
+
+    access_token = jwt_service.issue_access_token(
+        user_id=user_id,
+        email=body.email,
+        provider="local",
+    )
+    _set_refresh_cookie(response, raw_refresh, settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
+    return TokenResponse(access_token=access_token)
 
 
 # ---------------------------------------------------------------------------
