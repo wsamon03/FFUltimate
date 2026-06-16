@@ -26,28 +26,34 @@ async def get_games(
     date_start: str = None,
     date_end: str = None,
     season: int = None,
+    week: int = None,
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     """Get filtered list of games."""
     where = []
     params = []
     param_idx = 1
-    
+
     from datetime import date
-    
+
     if date_start:
         where.append(f"game_date::date >= ${param_idx}")
         params.append(date.fromisoformat(date_start))
         param_idx += 1
-        
+
     if date_end:
         where.append(f"game_date::date <= ${param_idx}")
         params.append(date.fromisoformat(date_end))
         param_idx += 1
-        
+
     if season:
         where.append(f"season_year = ${param_idx}")
         params.append(season)
+        param_idx += 1
+
+    if week is not None:
+        where.append(f"g.week = ${param_idx}")
+        params.append(week)
         param_idx += 1
     where_clause = " WHERE " + " AND ".join(where) if where else ""
     
