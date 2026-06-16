@@ -71,9 +71,9 @@ const categories = [
 ]
 
 const colMap: Record<string, { key: string; label: string }[]> = {
-  passing:   [{ key: 'pass_yards', label: 'Yards' }, { key: 'pass_tds', label: 'TDs' }, { key: 'interceptions', label: 'INT' }],
-  rushing:   [{ key: 'rush_yards', label: 'Yards' }, { key: 'rush_tds', label: 'TDs' }, { key: 'rush_attempts', label: 'ATT' }],
-  receiving: [{ key: 'rec_yards', label: 'Yards' }, { key: 'rec_tds', label: 'TDs' }, { key: 'receptions', label: 'REC' }],
+  passing:   [{ key: 'pass_yds', label: 'Yards' }, { key: 'pass_td', label: 'TDs' }, { key: 'pass_int', label: 'INT' }],
+  rushing:   [{ key: 'rush_yds', label: 'Yards' }, { key: 'rush_td', label: 'TDs' }, { key: 'rush_att', label: 'ATT' }],
+  receiving: [{ key: 'rec_yds', label: 'Yards' }, { key: 'rec_td', label: 'TDs' }, { key: 'rec_receptions', label: 'REC' }],
 }
 
 const activeCategory = ref('passing')
