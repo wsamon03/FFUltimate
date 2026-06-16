@@ -29,8 +29,8 @@
         </tr>
       </template>
       <tr v-for="(row, i) in rows" :key="row.player_id">
-        <td style="color: var(--color-text-secondary); width: 32px; padding: 8px 4px">{{ i + 1 }}</td>
-        <td style="width: 40px; padding: 8px 4px">
+        <td class="rank-cell" style="color: var(--color-text-secondary)">{{ i + 1 }}</td>
+        <td class="helmet-cell">
           <TeamHelmet v-if="row.team_nm" :abbr="row.team_nm" :size="24" />
           <span v-else style="color: var(--color-text-secondary)">—</span>
         </td>
@@ -92,3 +92,19 @@ async function load() {
 
 watch(() => props.gameId, load, { immediate: true })
 </script>
+
+<style scoped>
+.rank-cell {
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 8px 6px;
+}
+
+.helmet-cell {
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-align: center;
+  padding: 8px 6px;
+}
+</style>
