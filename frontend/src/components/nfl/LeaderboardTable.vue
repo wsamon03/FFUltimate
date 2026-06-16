@@ -22,13 +22,19 @@
     <AppTable v-else>
       <template #head>
         <tr>
-          <th>#</th>
+          <th class="sortable-header" @click="setSortColumn(null)">
+            # <span v-if="sortColumn === null" class="ml-1">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          </th>
           <th></th>
-          <th>Player</th>
-          <th v-for="col in activeCols" :key="col.key">{{ col.label }}</th>
+          <th class="sortable-header" @click="setSortColumn('player_name')">
+            Player <span v-if="sortColumn === 'player_name'" class="ml-1">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          </th>
+          <th v-for="col in activeCols" :key="col.key" class="sortable-header" @click="setSortColumn(col.key)">
+            {{ col.label }} <span v-if="sortColumn === col.key" class="ml-1">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          </th>
         </tr>
       </template>
-      <tr v-for="(row, i) in rows" :key="row.player_id">
+      <tr v-for="(row, i) in sortedRows" :key="row.player_id">
         <td class="rank-cell" style="color: var(--color-text-secondary)">{{ i + 1 }}</td>
         <td class="helmet-cell">
           <TeamHelmet v-if="row.team_nm" :abbr="row.team_nm" :size="24" />
@@ -73,11 +79,50 @@ const colMap: Record<string, { key: string; label: string }[]> = {
 const activeCategory = ref('passing')
 const loading = ref(false)
 const rows = ref<any[]>([])
+const sortColumn = ref<string | null>(null)
+const sortDir = ref<'asc' | 'desc'>('desc')
 
 const activeCols = computed(() => colMap[activeCategory.value] ?? [])
 
+const sortedRows = computed(() => {
+  if (!sortColumn.value) {
+    return rows.value
+  }
+
+  const sorted = [...rows.value]
+  sorted.sort((a, b) => {
+    const aVal = a[sortColumn.value!]
+    const bVal = b[sortColumn.value!]
+
+    if (aVal == null && bVal == null) return 0
+    if (aVal == null) return 1
+    if (bVal == null) return -1
+
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return sortDir.value === 'asc' ? aVal - bVal : bVal - aVal
+    }
+
+    const aStr = String(aVal).toLowerCase()
+    const bStr = String(bVal).toLowerCase()
+    return sortDir.value === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr)
+  })
+
+  return sorted
+})
+
+function setSortColumn(col: string | null) {
+  if (sortColumn.value === col) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortColumn.value = col
+    sortDir.value = 'desc'
+  }
+}
+
 async function selectCategory(cat: string) {
   activeCategory.value = cat
+  sortColumn.value = null
+  sortDir.value = 'desc'
   await load()
 }
 
@@ -106,5 +151,15 @@ watch(() => props.gameId, load, { immediate: true })
   flex-shrink: 0;
   text-align: center;
   padding: 8px 6px;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.sortable-header:hover {
+  color: var(--color-primary) !important;
 }
 </style>
