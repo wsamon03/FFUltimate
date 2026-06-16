@@ -30,7 +30,10 @@
               </RouterLink>
             </td>
             <td><PositionBadge :position="p.position || '—'" /></td>
-            <td style="color: var(--color-text-secondary)">{{ p.team_code || '—' }}</td>
+            <td>
+              <TeamHelmet v-if="p.team_code" :abbr="p.team_code" :size="24" />
+              <span v-else style="color: var(--color-text-secondary)">—</span>
+            </td>
             <td>
               <FavoriteStar :is-favorited="true" :loading="removingPlayer === p.id" @toggle="removePlayer(p)" />
             </td>
@@ -50,13 +53,16 @@
           <template #head>
             <tr>
               <th>Team</th>
-              <th>Abbr</th>
+              <th></th>
               <th></th>
             </tr>
           </template>
           <tr v-for="t in nflTeams" :key="t.id">
             <td class="font-medium" style="color: var(--color-text-primary)">{{ t.full_name || t.name }}</td>
-            <td style="color: var(--color-text-secondary)">{{ t.abbreviation || t.code || '—' }}</td>
+            <td>
+              <TeamHelmet v-if="t.abbreviation || t.code" :abbr="t.abbreviation || t.code" :size="24" />
+              <span v-else style="color: var(--color-text-secondary)">—</span>
+            </td>
             <td>
               <FavoriteStar :is-favorited="true" :loading="removingTeam === t.id" @toggle="removeTeam(t)" />
             </td>
@@ -75,6 +81,7 @@ import AppTable from '@/components/ui/AppTable.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import FavoriteStar from '@/components/common/FavoriteStar.vue'
 import PositionBadge from '@/components/common/PositionBadge.vue'
+import TeamHelmet from '@/components/common/TeamHelmet.vue'
 
 const loading = ref(true)
 const players = ref<any[]>([])

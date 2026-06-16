@@ -24,7 +24,7 @@
         <tr>
           <th>#</th>
           <th>Player</th>
-          <th>Team</th>
+          <th></th>
           <th v-for="col in activeCols" :key="col.key">{{ col.label }}</th>
         </tr>
       </template>
@@ -36,7 +36,10 @@
             {{ row.player_name || row.player_id }}
           </RouterLink>
         </td>
-        <td style="color: var(--color-text-secondary)">{{ row.team_nm || '—' }}</td>
+        <td>
+          <TeamHelmet v-if="row.team_nm" :abbr="row.team_nm" :size="24" />
+          <span v-else style="color: var(--color-text-secondary)">—</span>
+        </td>
         <td v-for="col in activeCols" :key="col.key" style="color: var(--color-text-primary)">
           {{ row[col.key] ?? '—' }}
         </td>
@@ -51,6 +54,7 @@ import { getLeaderboard } from '@/api/stats'
 import AppSpinner from '@/components/ui/AppSpinner.vue'
 import AppTable from '@/components/ui/AppTable.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
+import TeamHelmet from '@/components/common/TeamHelmet.vue'
 
 const props = defineProps<{ gameId: string }>()
 

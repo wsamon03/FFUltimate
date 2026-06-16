@@ -21,11 +21,8 @@
       >
         <AppCard hoverable>
           <div class="text-center">
-            <div
-              class="w-10 h-10 rounded-lg mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold"
-              style="background: var(--color-primary)"
-            >
-              {{ team.abbr || team.espn_id || '?' }}
+            <div class="flex justify-center mb-2">
+              <TeamHelmet :abbr="team.abbr || team.espn_id || '?'" :size="40" />
             </div>
             <div class="text-xs font-medium truncate" style="color: var(--color-text-primary)">
               {{ team.full_name || team.abbr }}
@@ -43,6 +40,7 @@ import { getTeams } from '@/api/stats'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppSpinner from '@/components/ui/AppSpinner.vue'
+import TeamHelmet from '@/components/common/TeamHelmet.vue'
 
 const loading = ref(true)
 const teams = ref<any[]>([])

@@ -14,14 +14,14 @@ def get_pool(request: Request) -> asyncpg.Pool:
     """Dependency to access the global asyncpg pool."""
     return request.app.state.pool
 
-@router.get("/api/teams")
+@router.get("/api/stats/teams")
 async def get_teams(pool: asyncpg.Pool = Depends(get_pool)):
     """Get all teams."""
     async with pool.acquire() as conn:
         rows = await conn.fetch("SELECT id, espn_id, abbr, full_name FROM teams ORDER BY abbr")
         return [{"id": str(r["id"]), "espn_id": r["espn_id"], "abbr": r["abbr"], "full_name": r["full_name"]} for r in rows]
 
-@router.get("/api/games")
+@router.get("/api/stats/games")
 async def get_games(
     date_start: str = None,
     date_end: str = None,
@@ -54,8 +54,8 @@ async def get_games(
     query = (
         f"SELECT g.id, g.espn_id, g.game_date, g.status_code, g.week, g.season_year, "
         f"g.home_score, g.away_score, "
-        f"h.abbr as home_abbr, h.full_name as home_name, "
-        f"a.abbr as away_abbr, a.full_name as away_name "
+        f"h.abbr as home_team_abbr, h.full_name as home_name, "
+        f"a.abbr as away_team_abbr, a.full_name as away_name "
         f"FROM games g "
         f"JOIN teams h ON g.home_team_id = h.id "
         f"JOIN teams a ON g.away_team_id = a.id "
@@ -78,8 +78,8 @@ async def get_game_stats(
         raise HTTPException(status_code=400, detail="Invalid game_id format (expected UUID)")
 
     query = (
-        "SELECT g.espn_id as game_espn_id, g.game_date, g.status_code, "
-        "g.week, g.season_year, "
+        "SELECT g.id, g.espn_id, g.game_date, g.status_code, "
+        "g.week, g.season_year, g.home_score, g.away_score, "
         "ht.espn_id as home_espn_id, ht.abbr as home_abbr, ht.full_name as home_name, "
         "ht.abbr as home_team_abbr, "
         "at.espn_id as away_espn_id, at.abbr as away_abbr, at.full_name as away_name, "
@@ -87,8 +87,8 @@ async def get_game_stats(
         "FROM games g "
         "JOIN teams ht ON g.home_team_id = ht.id "
         "JOIN teams at ON g.away_team_id = at.id "
-        "JOIN team_game_stats ts_h ON ts_h.game_id = g.id AND ts_h.team_id = g.home_team_id "
-        "JOIN team_game_stats ts_a ON ts_a.game_id = g.id AND ts_a.team_id = g.away_team_id "
+        "LEFT JOIN team_game_stats ts_h ON ts_h.game_id = g.id AND ts_h.team_id = g.home_team_id "
+        "LEFT JOIN team_game_stats ts_a ON ts_a.game_id = g.id AND ts_a.team_id = g.away_team_id "
         "WHERE g.id = $1"
     )
     
@@ -148,7 +148,7 @@ async def get_leaderboard(game_id: str, category: str = "passing", pool: asyncpg
     if category == "passing":
         query = (
             "SELECT pgs.*, p.name as player_name, p.espn_id as player_espn_id, "
-            "t.full_name as team_name "
+            "t.abbr as team_nm "
             "FROM player_game_stats pgs "
             "JOIN players p ON pgs.player_id = p.id "
             "JOIN teams t ON t.id = p.team_id "
@@ -159,7 +159,7 @@ async def get_leaderboard(game_id: str, category: str = "passing", pool: asyncpg
     elif category == "rushing":
         query = (
             "SELECT pgs.*, p.name as player_name, p.espn_id as player_espn_id, "
-            "t.full_name as team_name "
+            "t.abbr as team_nm "
             "FROM player_game_stats pgs "
             "JOIN players p ON pgs.player_id = p.id "
             "JOIN teams t ON t.id = p.team_id "
@@ -170,7 +170,7 @@ async def get_leaderboard(game_id: str, category: str = "passing", pool: asyncpg
     elif category == "receiving":
         query = (
             "SELECT pgs.*, p.name as player_name, p.espn_id as player_espn_id, "
-            "t.full_name as team_name "
+            "t.abbr as team_nm "
             "FROM player_game_stats pgs "
             "JOIN players p ON pgs.player_id = p.id "
             "JOIN teams t ON t.id = p.team_id "

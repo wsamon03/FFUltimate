@@ -44,7 +44,10 @@
           </RouterLink>
         </td>
         <td><PositionBadge :position="p.position || '—'" /></td>
-        <td style="color: var(--color-text-secondary)">{{ p.team_code || p.team || '—' }}</td>
+        <td>
+          <TeamHelmet v-if="p.team_code || p.team" :abbr="p.team_code || p.team" :size="24" />
+          <span v-else style="color: var(--color-text-secondary)">—</span>
+        </td>
         <td>
           <FavoriteStar
             :is-favorited="favorites.has(p.id)"
@@ -64,6 +67,7 @@ import { listFavorites, addPlayerFavorite, removePlayerFavorite } from '@/api/fa
 import SearchInput from '@/components/common/SearchInput.vue'
 import PositionBadge from '@/components/common/PositionBadge.vue'
 import FavoriteStar from '@/components/common/FavoriteStar.vue'
+import TeamHelmet from '@/components/common/TeamHelmet.vue'
 import AppSpinner from '@/components/ui/AppSpinner.vue'
 import AppTable from '@/components/ui/AppTable.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'

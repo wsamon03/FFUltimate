@@ -9,8 +9,10 @@
       <div class="flex items-center justify-between gap-2">
         <!-- Away team -->
         <div class="flex-1 text-center">
-          <div class="text-lg font-bold" style="color: var(--color-text-primary)">{{ game.away_team_abbr }}</div>
-          <div class="text-2xl font-bold mt-1" style="color: var(--color-text-primary)">
+          <div class="flex justify-center mb-2">
+            <TeamHelmet :abbr="game.away_team_abbr" :size="36" />
+          </div>
+          <div class="text-2xl font-bold" style="color: var(--color-text-primary)">
             {{ game.away_score ?? '—' }}
           </div>
         </div>
@@ -19,8 +21,10 @@
 
         <!-- Home team -->
         <div class="flex-1 text-center">
-          <div class="text-lg font-bold" style="color: var(--color-text-primary)">{{ game.home_team_abbr }}</div>
-          <div class="text-2xl font-bold mt-1" style="color: var(--color-text-primary)">
+          <div class="flex justify-center mb-2">
+            <TeamHelmet :abbr="game.home_team_abbr" :size="36" />
+          </div>
+          <div class="text-2xl font-bold" style="color: var(--color-text-primary)">
             {{ game.home_score ?? '—' }}
           </div>
         </div>
@@ -33,6 +37,7 @@
 import { computed } from 'vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import TeamHelmet from '@/components/common/TeamHelmet.vue'
 
 const props = defineProps<{ game: any }>()
 

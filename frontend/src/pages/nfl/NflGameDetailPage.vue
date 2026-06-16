@@ -17,7 +17,7 @@
 
         <div class="flex items-center justify-around py-4">
           <div class="text-center">
-            <div class="text-2xl font-bold" style="color: var(--color-text-primary)">{{ game.away_team_abbr }}</div>
+            <TeamHelmet :abbr="game.away_team_abbr" :size="64" />
             <div class="text-5xl font-bold mt-2" style="color: var(--color-text-primary)">
               {{ game.away_score ?? '—' }}
             </div>
@@ -27,7 +27,7 @@
           <div class="text-2xl font-bold" style="color: var(--color-text-secondary)">@</div>
 
           <div class="text-center">
-            <div class="text-2xl font-bold" style="color: var(--color-text-primary)">{{ game.home_team_abbr }}</div>
+            <TeamHelmet :abbr="game.home_team_abbr" :size="64" />
             <div class="text-5xl font-bold mt-2" style="color: var(--color-text-primary)">
               {{ game.home_score ?? '—' }}
             </div>
@@ -53,6 +53,7 @@ import AppCard from '@/components/ui/AppCard.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 import LeaderboardTable from '@/components/nfl/LeaderboardTable.vue'
+import TeamHelmet from '@/components/common/TeamHelmet.vue'
 
 const route = useRoute()
 const gameId = route.params.id as string
