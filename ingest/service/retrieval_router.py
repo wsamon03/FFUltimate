@@ -209,6 +209,80 @@ async def get_leaderboard(game_id: str, category: str = "passing", pool: asyncpg
             print(f"[DEBUG] Returned {len(rows)} rows for game {game_uuid} - {category}")
         return [dict(r) for r in rows]
 
+@router.get("/api/stats/player-season-stats")
+async def get_player_season_stats(
+    year: int = 2025,
+    name: str = None,
+    position: str = None,
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    """Get aggregated season stats per player, filterable by year, name, and position."""
+    query = """
+        SELECT
+            p.id::text AS player_id,
+            p.name,
+            COALESCE(p.position_code, '') AS position_code,
+            t.abbr AS team_abbr,
+            t.full_name AS team_name,
+            COALESCE(SUM(pgs.pass_comp), 0)::int     AS pass_comp,
+            COALESCE(SUM(pgs.pass_att), 0)::int      AS pass_att,
+            COALESCE(SUM(pgs.pass_yds), 0)::int      AS pass_yds,
+            COALESCE(SUM(pgs.pass_td), 0)::int       AS pass_td,
+            COALESCE(SUM(pgs.pass_int), 0)::int      AS pass_int,
+            COALESCE(SUM(pgs.pass_sacked), 0)::int   AS pass_sacked,
+            COALESCE(SUM(pgs.rush_att), 0)::int      AS rush_att,
+            COALESCE(SUM(pgs.rush_yds), 0)::int      AS rush_yds,
+            COALESCE(SUM(pgs.rush_td), 0)::int       AS rush_td,
+            COALESCE(SUM(pgs.rec_receptions), 0)::int AS rec_receptions,
+            COALESCE(SUM(pgs.rec_targets), 0)::int   AS rec_targets,
+            COALESCE(SUM(pgs.rec_yds), 0)::int       AS rec_yds,
+            COALESCE(SUM(pgs.rec_td), 0)::int        AS rec_td,
+            COALESCE(SUM(pgs.def_solo), 0)::int      AS def_solo,
+            COALESCE(SUM(pgs.def_ast), 0)::int       AS def_ast,
+            CAST(COALESCE(SUM(pgs.def_sacks), 0) AS NUMERIC(5,1)) AS def_sacks,
+            COALESCE(SUM(pgs.def_tfl), 0)::int       AS def_tfl,
+            COALESCE(SUM(pgs.def_pd), 0)::int        AS def_pd,
+            COALESCE(SUM(pgs.def_qb_hits), 0)::int   AS def_qb_hits,
+            COALESCE(SUM(pgs.def_td), 0)::int        AS def_td,
+            COALESCE(SUM(pgs.def_int), 0)::int       AS def_int
+        FROM player_game_stats pgs
+        JOIN players p ON pgs.player_id = p.id
+        LEFT JOIN teams t ON p.team_id = t.id
+        JOIN games g ON pgs.game_id = g.id
+        WHERE g.season_year = $1
+          AND ($2::text IS NULL OR p.name ILIKE '%' || $2 || '%')
+          AND ($3::text IS NULL OR p.position_code = $3)
+        GROUP BY p.id, p.name, p.position_code, t.abbr, t.full_name
+        ORDER BY
+            (COALESCE(SUM(pgs.pass_yds), 0) + COALESCE(SUM(pgs.rush_yds), 0) + COALESCE(SUM(pgs.rec_yds), 0)) DESC,
+            (COALESCE(SUM(pgs.def_solo), 0) + COALESCE(SUM(pgs.def_ast), 0)) DESC
+        LIMIT 500
+    """
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query, year, name or None, position or None)
+        result = []
+        for r in rows:
+            row = dict(r)
+            row['def_sacks'] = float(row['def_sacks']) if row['def_sacks'] else 0.0
+            result.append(row)
+        return result
+
+
+@router.get("/api/stats/player-positions")
+async def get_player_positions(pool: asyncpg.Pool = Depends(get_pool)):
+    """Get all distinct position codes that appear in player game stats."""
+    query = """
+        SELECT DISTINCT p.position_code
+        FROM players p
+        JOIN player_game_stats pgs ON pgs.player_id = p.id
+        WHERE p.position_code IS NOT NULL AND p.position_code != ''
+        ORDER BY p.position_code
+    """
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query)
+        return [r['position_code'] for r in rows]
+
+
 @router.get("/fantasy/{player_id}")
 async def get_fantasy_stats(player_id: str, pool: asyncpg.Pool = Depends(get_pool)):
     """Get fantasy-ready stats for a player."""

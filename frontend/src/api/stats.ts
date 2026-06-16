@@ -34,3 +34,19 @@ export async function getFantasyStats(playerId: string) {
   const { data } = await apiClient.get(`/api/stats/fantasy/${playerId}`)
   return data
 }
+
+export async function getPlayerSeasonStats(year: number, name?: string, position?: string) {
+  const { data } = await apiClient.get('/api/stats/player-season-stats', {
+    params: {
+      year,
+      name: name || undefined,
+      position: position || undefined,
+    },
+  })
+  return data
+}
+
+export async function getPlayerPositions() {
+  const { data } = await apiClient.get('/api/stats/player-positions')
+  return data
+}

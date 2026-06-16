@@ -26,8 +26,8 @@ async def search_players(
             """SELECT player_id AS id, espn_id, name, name AS full_name,
                       position_code AS position, team_abbr AS team_code, team_name
                FROM user_api.fn_search_players($1, $2, $3)""",
-            name,
-            position,
+            name or None,
+            position or None,
             team_id,
         )
     return [dict(r) for r in rows]
