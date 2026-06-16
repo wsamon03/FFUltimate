@@ -48,7 +48,7 @@ const route = useRoute()
 const currentYear = new Date().getFullYear()
 
 const filters = ref({
-  season: currentYear,
+  season: 2025,
   week: 1,
   team: route.query.team as string || '',
 })
