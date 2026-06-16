@@ -23,7 +23,9 @@ async def search_players(
 ) -> list[dict[str, Any]]:
     async with pool.acquire() as conn:
         rows = await conn.fetch(
-            "CALL user_api.fn_search_players($1, $2, $3)",
+            """SELECT player_id AS id, espn_id, name, name AS full_name,
+                      position_code AS position, team_abbr AS team_code, team_name
+               FROM user_api.fn_search_players($1, $2, $3)""",
             name,
             position,
             team_id,
@@ -39,7 +41,9 @@ async def get_player(
 ) -> dict[str, Any]:
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
-            "CALL user_api.fn_get_player($1)",
+            """SELECT player_id AS id, espn_id, name, name AS full_name,
+                      position_code AS position, team_abbr AS team_code, team_name
+               FROM user_api.fn_get_player($1)""",
             player_id,
         )
     if not row:
