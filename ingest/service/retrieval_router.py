@@ -244,7 +244,23 @@ async def get_player_season_stats(
             COALESCE(SUM(pgs.def_pd), 0)::int        AS def_pd,
             COALESCE(SUM(pgs.def_qb_hits), 0)::int   AS def_qb_hits,
             COALESCE(SUM(pgs.def_td), 0)::int        AS def_td,
-            COALESCE(SUM(pgs.def_int), 0)::int       AS def_int
+            COALESCE(SUM(pgs.def_int), 0)::int       AS def_int,
+            COALESCE(SUM(pgs.k_fg_make), 0)::int     AS k_fg_make,
+            COALESCE(SUM(pgs.k_fg_att), 0)::int      AS k_fg_att,
+            COALESCE(SUM(pgs.k_xp_make), 0)::int     AS k_xp_make,
+            COALESCE(SUM(pgs.k_xp_att), 0)::int      AS k_xp_att,
+            COALESCE(SUM(pgs.p_no), 0)::int          AS p_no,
+            COALESCE(SUM(pgs.p_yds), 0)::int         AS p_yds,
+            COALESCE(SUM(pgs.p_in20), 0)::int        AS p_in20,
+            COALESCE(SUM(pgs.p_tb), 0)::int          AS p_tb,
+            COALESCE(SUM(pgs.p_blk), 0)::int         AS p_blk,
+            COALESCE(SUM(pgs.p_long), 0)::int        AS p_long,
+            COALESCE(SUM(pgs.ret_kick_no), 0)::int   AS ret_kick_no,
+            COALESCE(SUM(pgs.ret_kick_yds), 0)::int  AS ret_kick_yds,
+            COALESCE(SUM(pgs.ret_kick_td), 0)::int   AS ret_kick_td,
+            COALESCE(SUM(pgs.ret_punt_no), 0)::int   AS ret_punt_no,
+            COALESCE(SUM(pgs.ret_punt_yds), 0)::int  AS ret_punt_yds,
+            COALESCE(SUM(pgs.ret_punt_td), 0)::int   AS ret_punt_td
         FROM player_game_stats pgs
         JOIN players p ON pgs.player_id = p.id
         LEFT JOIN teams t ON p.team_id = t.id

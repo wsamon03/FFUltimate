@@ -68,7 +68,7 @@
             <th title="Receiving Yards">YDS</th>
             <th title="Receiving TDs">TD</th>
           </template>
-          <template v-else>
+          <template v-else-if="statType === 'defense'">
             <th title="Solo Tackles">SOLO</th>
             <th title="Assisted Tackles">AST</th>
             <th title="Sacks">SACKS</th>
@@ -77,6 +77,24 @@
             <th title="QB Hits">QB HIT</th>
             <th title="Defensive TDs">DEF TD</th>
             <th title="Interceptions">INT</th>
+          </template>
+          <template v-else>
+            <th title="Field Goals Made">FGM</th>
+            <th title="Field Goal Attempts">FGA</th>
+            <th title="Extra Points Made">XPM</th>
+            <th title="Extra Point Attempts">XPA</th>
+            <th title="Punts">PUNTS</th>
+            <th title="Punt Yards">P YDS</th>
+            <th title="Inside 20">IN20</th>
+            <th title="Touchbacks">TB</th>
+            <th title="Blocked Punts">BLK</th>
+            <th title="Longest Punt">LONG</th>
+            <th title="Kick Returns">KR</th>
+            <th title="Kick Return Yards">KR YDS</th>
+            <th title="Kick Return TDs">KR TD</th>
+            <th title="Punt Returns">PR</th>
+            <th title="Punt Return Yards">PR YDS</th>
+            <th title="Punt Return TDs">PR TD</th>
           </template>
         </tr>
       </template>
@@ -120,7 +138,7 @@
           <td>{{ p.rec_yds }}</td>
           <td>{{ p.rec_td }}</td>
         </template>
-        <template v-else>
+        <template v-else-if="statType === 'defense'">
           <td>{{ p.def_solo }}</td>
           <td>{{ p.def_ast }}</td>
           <td>{{ p.def_sacks }}</td>
@@ -129,6 +147,24 @@
           <td>{{ p.def_qb_hits }}</td>
           <td>{{ p.def_td }}</td>
           <td>{{ p.def_int }}</td>
+        </template>
+        <template v-else>
+          <td>{{ p.k_fg_make }}</td>
+          <td>{{ p.k_fg_att }}</td>
+          <td>{{ p.k_xp_make }}</td>
+          <td>{{ p.k_xp_att }}</td>
+          <td>{{ p.p_no }}</td>
+          <td>{{ p.p_yds }}</td>
+          <td>{{ p.p_in20 }}</td>
+          <td>{{ p.p_tb }}</td>
+          <td>{{ p.p_blk }}</td>
+          <td>{{ p.p_long }}</td>
+          <td>{{ p.ret_kick_no }}</td>
+          <td>{{ p.ret_kick_yds }}</td>
+          <td>{{ p.ret_kick_td }}</td>
+          <td>{{ p.ret_punt_no }}</td>
+          <td>{{ p.ret_punt_yds }}</td>
+          <td>{{ p.ret_punt_td }}</td>
         </template>
       </tr>
     </AppTable>
@@ -150,6 +186,7 @@ import AppEmptyState from '@/components/ui/AppEmptyState.vue'
 const statTypes = [
   { value: 'offense', label: 'Offense' },
   { value: 'defense', label: 'Defense' },
+  { value: 'special', label: 'Special Teams' },
 ]
 
 const query = ref('')
@@ -169,6 +206,13 @@ const sortedPlayers = computed(() => {
     return [...players.value].sort((a, b) => {
       const aScore = (a.def_solo ?? 0) + (a.def_ast ?? 0) + (a.def_sacks ?? 0) * 2
       const bScore = (b.def_solo ?? 0) + (b.def_ast ?? 0) + (b.def_sacks ?? 0) * 2
+      return bScore - aScore
+    })
+  }
+  if (statType.value === 'special') {
+    return [...players.value].sort((a, b) => {
+      const aScore = (a.p_yds ?? 0) + (a.k_fg_make ?? 0) * 50 + (a.ret_kick_yds ?? 0) + (a.ret_punt_yds ?? 0)
+      const bScore = (b.p_yds ?? 0) + (b.k_fg_make ?? 0) * 50 + (b.ret_kick_yds ?? 0) + (b.ret_punt_yds ?? 0)
       return bScore - aScore
     })
   }
