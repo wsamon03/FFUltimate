@@ -7,13 +7,18 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(null)
   const user = ref<UserProfile | null>(null)
 
+  let _bootResolve!: () => void
+  const bootPromise = new Promise<void>((res) => { _bootResolve = res })
+
   async function boot() {
     try {
       const { access_token } = await postRefresh()
       token.value = access_token
       user.value = await getMe()
     } catch {
-      // Not logged in
+      // Not logged in — token stays null
+    } finally {
+      _bootResolve()
     }
   }
 
@@ -32,5 +37,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { token, user, boot, setToken, logout }
+  return { token, user, boot, bootPromise, setToken, logout }
 })
