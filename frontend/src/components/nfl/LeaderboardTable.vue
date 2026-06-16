@@ -23,22 +23,22 @@
       <template #head>
         <tr>
           <th>#</th>
-          <th>Player</th>
           <th></th>
+          <th>Player</th>
           <th v-for="col in activeCols" :key="col.key">{{ col.label }}</th>
         </tr>
       </template>
       <tr v-for="(row, i) in rows" :key="row.player_id">
-        <td style="color: var(--color-text-secondary)">{{ i + 1 }}</td>
+        <td style="color: var(--color-text-secondary); width: 32px; padding: 8px 4px">{{ i + 1 }}</td>
+        <td style="width: 40px; padding: 8px 4px">
+          <TeamHelmet v-if="row.team_nm" :abbr="row.team_nm" :size="24" />
+          <span v-else style="color: var(--color-text-secondary)">—</span>
+        </td>
         <td>
           <RouterLink :to="`/players/${row.player_id}`" class="font-medium hover:underline"
             style="color: var(--color-primary)">
             {{ row.player_name || row.player_id }}
           </RouterLink>
-        </td>
-        <td>
-          <TeamHelmet v-if="row.team_nm" :abbr="row.team_nm" :size="24" />
-          <span v-else style="color: var(--color-text-secondary)">—</span>
         </td>
         <td v-for="col in activeCols" :key="col.key" style="color: var(--color-text-primary)">
           {{ row[col.key] ?? '—' }}
