@@ -28,19 +28,36 @@
         </div>
       </div>
 
-      <!-- Stat tabs -->
-      <div class="flex gap-1 border-b" style="border-color: var(--color-border)">
-        <button
-          v-for="tab in ['Stats', 'Fantasy']"
-          :key="tab"
-          class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
-          :style="activeTab === tab
-            ? `border-color: var(--color-primary); color: var(--color-primary)`
-            : `border-color: transparent; color: var(--color-text-secondary)`"
-          @click="activeTab = tab"
-        >
-          {{ tab }}
-        </button>
+      <!-- Stat tabs and type selector -->
+      <div class="space-y-4">
+        <div class="flex gap-1 border-b" style="border-color: var(--color-border)">
+          <button
+            v-for="tab in ['Stats', 'Fantasy']"
+            :key="tab"
+            class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors"
+            :style="activeTab === tab
+              ? `border-color: var(--color-primary); color: var(--color-primary)`
+              : `border-color: transparent; color: var(--color-text-secondary)`"
+            @click="activeTab = tab"
+          >
+            {{ tab }}
+          </button>
+        </div>
+
+        <!-- Stat type selector (for defense/special teams) -->
+        <div class="flex rounded-lg overflow-hidden border" style="border-color: var(--color-border)">
+          <button
+            v-for="type in statTypes"
+            :key="type.value"
+            class="px-4 py-2 text-sm font-medium transition-colors"
+            :style="statTypeMode === type.value
+              ? 'background: var(--color-primary); color: #fff'
+              : 'background: var(--color-card); color: var(--color-text-secondary)'"
+            @click="statTypeMode = type.value"
+          >
+            {{ type.label }}
+          </button>
+        </div>
       </div>
 
       <!-- StatToggleBar -->
@@ -56,26 +73,22 @@
           <tr>
             <th>Season</th>
             <th v-if="showWeek">Week</th>
-            <template v-if="positionGroup === 'QB'">
-              <th>Att</th><th>Comp</th><th>Pass Yds</th><th>Pass TD</th><th>INT</th><th>Rush Yds</th><th>Rush TD</th>
+            <!-- Offense stats -->
+            <template v-if="statTypeMode === 'offense'">
+              <th>Comp</th><th>Att</th><th>Pass Yds</th><th>Pass TD</th><th>INT</th>
+              <th>Rush Att</th><th>Rush Yds</th><th>Rush TD</th>
+              <th>Rec</th><th>Tgts</th><th>Rec Yds</th><th>Rec TD</th>
             </template>
-            <template v-else-if="positionGroup === 'RB'">
-              <th>Rush Att</th><th>Rush Yds</th><th>Rush TD</th><th>Rec</th><th>Tgts</th><th>Rec Yds</th><th>Rec TD</th>
-            </template>
-            <template v-else-if="positionGroup === 'WR'">
-              <th>Rec</th><th>Tgts</th><th>Rec Yds</th><th>Rec TD</th><th>Rush Yds</th>
-            </template>
-            <template v-else-if="positionGroup === 'DEF'">
+            <!-- Defense stats -->
+            <template v-else-if="statTypeMode === 'defense'">
               <th>Solo</th><th>Ast</th><th>Sacks</th><th>TFL</th><th>PD</th><th>QB Hits</th><th>INT</th><th>TD</th>
             </template>
-            <template v-else-if="positionGroup === 'K'">
+            <!-- Special teams stats -->
+            <template v-else-if="statTypeMode === 'special'">
               <th>FGM</th><th>FGA</th><th>XPM</th><th>XPA</th>
-            </template>
-            <template v-else-if="positionGroup === 'P'">
-              <th>Punts</th><th>Yds</th><th>In 20</th>
-            </template>
-            <template v-else>
-              <th>Pass Yds</th><th>Pass TD</th><th>Rush Yds</th><th>Rush TD</th><th>Rec</th><th>Rec Yds</th><th>Rec TD</th>
+              <th>Punts</th><th>Yds</th><th>In 20</th><th>TB</th><th>Blk</th><th>Long</th>
+              <th>Kick Ret</th><th>Kick Yds</th><th>Kick TD</th>
+              <th>Punt Ret</th><th>Punt Yds</th><th>Punt TD</th>
             </template>
           </tr>
         </template>
@@ -84,7 +97,7 @@
           :key="i"
           :row="row"
           :show-week="showWeek"
-          :position-group="positionGroup"
+          :stat-type="statTypeMode"
         />
       </AppTable>
     </template>
@@ -119,6 +132,13 @@ const isFavorited = ref(false)
 const togglingFav = ref(false)
 const activeTab = ref('Stats')
 const currentFilter = ref<StatFilter>({ mode: 'career' })
+const statTypeMode = ref('offense')
+
+const statTypes = [
+  { value: 'offense', label: 'Offense' },
+  { value: 'defense', label: 'Defense' },
+  { value: 'special', label: 'Special Teams' },
+]
 
 onMounted(async () => {
   try {
