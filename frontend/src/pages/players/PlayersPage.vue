@@ -346,7 +346,11 @@ async function loadStats() {
 
 async function loadFavorites() {
   const data = await listFavorites()
-  favorites.value = new Set((data.players || []).map((p: any) => p.id))
+  favorites.value = new Set(
+    data
+      .filter((f: any) => f.kind === 'player')
+      .map((f: any) => f.target_id)
+  )
 }
 
 watch(query, () => {

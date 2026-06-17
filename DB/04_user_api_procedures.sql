@@ -334,8 +334,11 @@ RETURNS TABLE (
     favorite_id   UUID,
     kind          TEXT,       -- 'player' or 'team'
     target_id     UUID,
-    target_name   VARCHAR,
-    extra         VARCHAR,    -- position_code for players, abbr for teams
+    name          VARCHAR,
+    full_name     VARCHAR,
+    position_code VARCHAR,    -- for players
+    team_code     VARCHAR,    -- player's NFL team abbr
+    abbr          VARCHAR,    -- for NFL teams
     added_at      TIMESTAMP
 ) AS $$
 BEGIN
@@ -346,10 +349,14 @@ BEGIN
         'player'::TEXT,
         p.id,
         p.name,
+        p.name,
         p.position_code,
+        t.abbr,
+        NULL::VARCHAR,
         f.added_at
     FROM user_api.favorites f
     JOIN public.players p ON p.id = f.player_id
+    LEFT JOIN public.teams t ON t.id = p.team_id
     WHERE f.user_id = p_user_id AND f.player_id IS NOT NULL
 
     UNION ALL
@@ -359,7 +366,10 @@ BEGIN
         f.id,
         'team'::TEXT,
         t.id,
+        t.abbr,
         t.full_name,
+        NULL::VARCHAR,
+        NULL::VARCHAR,
         t.abbr,
         f.added_at
     FROM user_api.favorites f

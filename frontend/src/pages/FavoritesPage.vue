@@ -92,9 +92,13 @@ const removingTeam = ref<string | null>(null)
 async function load() {
   loading.value = true
   try {
-    const data = await listFavorites()
-    players.value = data.players || []
-    nflTeams.value = data.teams || []
+    const favorites = await listFavorites()
+    players.value = favorites
+      .filter((f: any) => f.kind === 'player')
+      .map((f: any) => ({ id: f.target_id, name: f.name, full_name: f.full_name, position: f.position_code, team_code: f.team_code }))
+    nflTeams.value = favorites
+      .filter((f: any) => f.kind === 'team')
+      .map((f: any) => ({ id: f.target_id, name: f.name, full_name: f.full_name, code: f.abbr, abbreviation: f.abbr }))
   } finally {
     loading.value = false
   }
