@@ -535,10 +535,10 @@ BEGIN
     INSERT INTO user_api.favorites
         (user_id, kind, player_id, team_id, target_name, extra)
     VALUES
-        (p_user_id, p_kind, p_target_id, NULLIF(p_target_id, ''), p_target_name, NULL)
-    ON CONFLICT (user_id, p_kind, COALESCE(player_id, team_id)) DO UPDATE
-        SET target_name = NULLIF(p_target_name, ''),
-            extra = NULL;
+        (p_user_id, p_kind,
+         CASE WHEN p_kind = 'player' THEN p_target_id ELSE NULL END,
+         CASE WHEN p_kind = 'team' THEN p_target_id ELSE NULL END,
+         p_target_name, NULL);
 END;
 $$ LANGUAGE plpgsql;
 

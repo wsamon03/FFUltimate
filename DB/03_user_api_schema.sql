@@ -136,11 +136,14 @@ CREATE INDEX IF NOT EXISTS idx_weekly_lineups_team_week
 -- One row per bookmark; exactly one of player_id / team_id is non-null.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_api.favorites (
-    id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id   UUID NOT NULL REFERENCES user_api.users(id) ON DELETE CASCADE,
-    player_id UUID REFERENCES public.players(id),
-    team_id   UUID REFERENCES public.teams(id),
-    added_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id       UUID NOT NULL REFERENCES user_api.users(id) ON DELETE CASCADE,
+    kind          TEXT,  -- 'player' or 'team' (redundant with nullability but useful for queries)
+    player_id     UUID REFERENCES public.players(id),
+    team_id       UUID REFERENCES public.teams(id),
+    target_name   VARCHAR,  -- cached player/team name for display
+    extra         VARCHAR,  -- cached position_code for players, abbr for teams
+    added_at      TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT chk_one_target CHECK (
         (player_id IS NOT NULL AND team_id IS NULL) OR
         (player_id IS NULL     AND team_id IS NOT NULL)
