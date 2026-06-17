@@ -16,6 +16,9 @@ class FavoriteResponse(BaseModel):
     favorite_id: UUID
     kind: str           # 'player' or 'team'
     target_id: UUID
-    target_name: str
-    extra: str | None   # position_code for players, abbr for teams
+    name: str           # player name or team abbr
+    full_name: str      # player name or team full_name
+    position_code: str | None  # for players only
+    team_code: str | None      # player's NFL team abbr
+    abbr: str | None    # for teams only
     added_at: datetime

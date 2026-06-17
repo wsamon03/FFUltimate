@@ -561,9 +561,11 @@ CREATE OR REPLACE PROCEDURE user_api.usp_remove_favorite(
 BEGIN
     DELETE FROM user_api.favorites
     WHERE user_id = p_user_id
-      AND kind = p_kind
-      AND (p_kind = 'player' AND COALESCE(player_id, team_id) = p_target_id)
-      AND (p_kind = 'team' AND COALESCE(player_id, team_id) = p_target_id);
+      AND CASE
+            WHEN p_kind = 'player' THEN player_id = p_target_id
+            WHEN p_kind = 'team' THEN team_id = p_target_id
+            ELSE FALSE
+          END;
 END;
 $$ LANGUAGE plpgsql;
 
