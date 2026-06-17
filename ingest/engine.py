@@ -154,9 +154,24 @@ class IngestionEngine:
             return -1, -1
 
     async def process_season(self, year: str, include_playoffs: bool = False) -> tuple[int, int]:
-        """Ingest entire season."""
-        event_ids = await self.api.discover_season_games(year, include_playoffs)
-        return await self.process_game_ids(event_ids)
+        """Ingest entire season week by week using the proven week fetch path (no type= param)."""
+        from ingest.utils.constants import WEEKS_REGULAR, WEEKS_PLAYOFFS
+        total_processed, total_failed = 0, 0
+        for week in range(1, WEEKS_REGULAR + 1):
+            logger.info(f"[SEASON {year}] Week {week}/{WEEKS_REGULAR}")
+            p, f = await self.process_week(year, week)
+            if p >= 0:
+                total_processed += p
+                total_failed += f
+        if include_playoffs:
+            for week in range(1, WEEKS_PLAYOFFS + 1):
+                logger.info(f"[SEASON {year}] Playoff week {week}")
+                p, f = await self.process_week(year, week)
+                if p >= 0:
+                    total_processed += p
+                    total_failed += f
+        logger.info(f"[SEASON {year}] Done: {total_processed} processed, {total_failed} failed")
+        return total_processed, total_failed
 
     def _normalize_boxscore(self, raw: dict):
         """Normalize raw ESPN API response to internal model."""

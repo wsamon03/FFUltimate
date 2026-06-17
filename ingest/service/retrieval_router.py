@@ -271,8 +271,10 @@ async def get_player_season_stats(
         GROUP BY p.id, p.name, p.position_code, t.abbr, t.full_name
         ORDER BY
             (COALESCE(SUM(pgs.pass_yds), 0) + COALESCE(SUM(pgs.rush_yds), 0) + COALESCE(SUM(pgs.rec_yds), 0)) DESC,
-            (COALESCE(SUM(pgs.def_solo), 0) + COALESCE(SUM(pgs.def_ast), 0)) DESC
-        LIMIT 500
+            (COALESCE(SUM(pgs.def_solo), 0) + COALESCE(SUM(pgs.def_ast), 0)) DESC,
+            COALESCE(SUM(pgs.k_fg_make), 0) DESC,
+            COALESCE(SUM(pgs.p_no), 0) DESC
+        LIMIT 2000
     """
     async with pool.acquire() as conn:
         rows = await conn.fetch(query, year, name or None, position or None)
@@ -282,6 +284,24 @@ async def get_player_season_stats(
             row['def_sacks'] = float(row['def_sacks']) if row['def_sacks'] else 0.0
             result.append(row)
         return result
+
+
+@router.get("/api/stats/season-summary")
+async def get_season_summary(year: int = Query(...), pool: asyncpg.Pool = Depends(get_pool)):
+    """Return per-week game count and player_stats count for a season. Use to verify ingestion completeness."""
+    query = """
+        SELECT g.week,
+               COUNT(DISTINCT g.id) AS games,
+               COUNT(pgs.id)        AS player_stats
+        FROM games g
+        LEFT JOIN player_game_stats pgs ON pgs.game_id = g.id
+        WHERE g.season_year = $1
+        GROUP BY g.week
+        ORDER BY g.week
+    """
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query, year)
+        return [{"week": r["week"], "games": r["games"], "player_stats": r["player_stats"]} for r in rows]
 
 
 @router.get("/api/stats/player-positions")
@@ -299,7 +319,7 @@ async def get_player_positions(pool: asyncpg.Pool = Depends(get_pool)):
         return [r['position_code'] for r in rows]
 
 
-@router.get("/fantasy/{player_id}")
+@router.get("/api/stats/fantasy/{player_id}")
 async def get_fantasy_stats(player_id: str, pool: asyncpg.Pool = Depends(get_pool)):
     """Get fantasy-ready stats for a player."""
     query = (

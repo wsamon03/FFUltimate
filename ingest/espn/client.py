@@ -85,7 +85,11 @@ class ESPNClient(APIProvider):
                 if sb:
                     ids = _extract_ids(sb)
                     if ids:
+                        logger.info(f"    Week {week}: {len(ids)} games found")
                         game_ids.update(ids)
+                    else:
+                        logger.debug(f"    Week {week}: 0 games returned")
+                await asyncio.sleep(0.3)
         return sorted(game_ids)
 
 

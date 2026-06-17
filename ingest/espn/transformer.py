@@ -161,4 +161,8 @@ def _parse_player_stats(labels: list, stats_arr: list, category_name: str) -> di
         stats["p_blk"] = parse_int(stat_map.get("BLK"))
         stats["p_long"] = parse_int(stat_map.get("LONG"))
 
+    elif category_lower and category_lower not in ("fumbles",):
+        import logging as _log
+        _log.getLogger(__name__).warning(f"[TRANSFORMER] Unhandled category: {category_name!r}")
+
     return stats

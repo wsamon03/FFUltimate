@@ -56,13 +56,27 @@
           <tr>
             <th>Season</th>
             <th v-if="showWeek">Week</th>
-            <th>Pass Yds</th>
-            <th>Pass TD</th>
-            <th>Rush Yds</th>
-            <th>Rush TD</th>
-            <th>Rec Yds</th>
-            <th>Rec</th>
-            <th>Rec TD</th>
+            <template v-if="positionGroup === 'QB'">
+              <th>Att</th><th>Comp</th><th>Pass Yds</th><th>Pass TD</th><th>INT</th><th>Rush Yds</th><th>Rush TD</th>
+            </template>
+            <template v-else-if="positionGroup === 'RB'">
+              <th>Rush Att</th><th>Rush Yds</th><th>Rush TD</th><th>Rec</th><th>Tgts</th><th>Rec Yds</th><th>Rec TD</th>
+            </template>
+            <template v-else-if="positionGroup === 'WR'">
+              <th>Rec</th><th>Tgts</th><th>Rec Yds</th><th>Rec TD</th><th>Rush Yds</th>
+            </template>
+            <template v-else-if="positionGroup === 'DEF'">
+              <th>Solo</th><th>Ast</th><th>Sacks</th><th>TFL</th><th>PD</th><th>QB Hits</th><th>INT</th><th>TD</th>
+            </template>
+            <template v-else-if="positionGroup === 'K'">
+              <th>FGM</th><th>FGA</th><th>XPM</th><th>XPA</th>
+            </template>
+            <template v-else-if="positionGroup === 'P'">
+              <th>Punts</th><th>Yds</th><th>In 20</th>
+            </template>
+            <template v-else>
+              <th>Pass Yds</th><th>Pass TD</th><th>Rush Yds</th><th>Rush TD</th><th>Rec</th><th>Rec Yds</th><th>Rec TD</th>
+            </template>
           </tr>
         </template>
         <PlayerStatRow
@@ -70,6 +84,7 @@
           :key="i"
           :row="row"
           :show-week="showWeek"
+          :position-group="positionGroup"
         />
       </AppTable>
     </template>
@@ -79,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getPlayer } from '@/api/players'
 import { getPlayerStats, getFantasyStats } from '@/api/stats'
@@ -129,9 +144,31 @@ async function onFilterChange(filter: StatFilter) {
   }
 }
 
+watch(activeTab, async (tab) => {
+  loadingStats.value = true
+  try {
+    allStats.value = tab === 'Fantasy'
+      ? await getFantasyStats(playerId)
+      : await getPlayerStats(playerId)
+  } finally {
+    loadingStats.value = false
+  }
+})
+
 const showWeek = computed(() =>
   currentFilter.value.mode === 'by_week' || currentFilter.value.mode === 'range',
 )
+
+const positionGroup = computed(() => {
+  const pos = player.value?.position ?? ''
+  if (pos === 'QB') return 'QB'
+  if (pos === 'RB') return 'RB'
+  if (pos === 'WR' || pos === 'TE') return 'WR'
+  if (['DL', 'LB', 'CB', 'S'].includes(pos)) return 'DEF'
+  if (pos === 'K') return 'K'
+  if (pos === 'P') return 'P'
+  return 'OFF'
+})
 
 const filteredStats = computed(() => {
   const f = currentFilter.value
