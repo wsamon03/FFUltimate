@@ -110,18 +110,24 @@ async def get_game_stats(
 
 @router.get("/api/stats/player/{player_id}")
 async def get_player_stats(player_id: str, pool: asyncpg.Pool = Depends(get_pool)):
-    """Get all stats for a player across all games."""
+    """Get all stats for a player across all games, including opponent context."""
     query = (
         "SELECT pgs.*, p.name as player_name, p.position_code, p.espn_id as player_espn_id, "
-        "t.full_name as team_name, g.game_date, g.week, g.season_year "
+        "t.full_name as team_name, t.abbr as player_team_abbr, "
+        "g.game_date, g.week, g.season_year, "
+        "ht.abbr as home_team_abbr, att.abbr as away_team_abbr, "
+        "(g.home_team_id = p.team_id) as is_home, "
+        "CASE WHEN g.home_team_id = p.team_id THEN att.abbr ELSE ht.abbr END as opponent_abbr "
         "FROM player_game_stats pgs "
         "JOIN players p ON pgs.player_id = p.id "
         "JOIN games g ON pgs.game_id = g.id "
         "JOIN teams t ON p.team_id = t.id "
+        "JOIN teams ht ON g.home_team_id = ht.id "
+        "JOIN teams att ON g.away_team_id = att.id "
         "WHERE pgs.player_id = $1 "
-        "ORDER BY g.game_date DESC"
+        "ORDER BY g.season_year DESC, g.week ASC"
     )
-    
+
     async with pool.acquire() as conn:
         rows = await conn.fetch(query, player_id)
         return [dict(r) for r in rows]

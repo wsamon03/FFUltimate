@@ -1,10 +1,49 @@
 <template>
   <tr>
-    <td style="color: var(--color-text-secondary)">{{ row.season_year ?? row.season ?? '—' }}</td>
-    <td v-if="showWeek" style="color: var(--color-text-secondary)">{{ row.week ?? '—' }}</td>
+    <!-- Career mode: clickable season year -->
+    <template v-if="mode === 'career'">
+      <td>
+        <button
+          class="text-sm font-medium hover:underline"
+          style="color: var(--color-primary)"
+          @click="$emit('season-click', row.season_year)"
+        >{{ row.season_year ?? '—' }}</button>
+      </td>
+    </template>
+
+    <!-- Season mode: week + opponent -->
+    <template v-else-if="mode === 'season'">
+      <td style="color: var(--color-text-secondary)">{{ row.week ?? '—' }}</td>
+      <td>
+        <div class="flex items-center gap-1">
+          <span style="color: var(--color-text-secondary); font-size: 0.75rem">{{ row.is_home ? 'vs.' : '@' }}</span>
+          <img v-if="row.opponent_abbr" :src="`/helmets/${row.opponent_abbr}.png`" style="height: 20px; width: auto;" alt="" />
+          <span style="font-size: 0.8rem">{{ row.opponent_abbr ?? '—' }}</span>
+        </div>
+      </td>
+    </template>
+
+    <!-- Range mode: season + week + opponent -->
+    <template v-else-if="mode === 'range'">
+      <td style="color: var(--color-text-secondary)">{{ row.season_year ?? '—' }}</td>
+      <td style="color: var(--color-text-secondary)">{{ row.week ?? '—' }}</td>
+      <td>
+        <div class="flex items-center gap-1">
+          <span style="color: var(--color-text-secondary); font-size: 0.75rem">{{ row.is_home ? 'vs.' : '@' }}</span>
+          <img v-if="row.opponent_abbr" :src="`/helmets/${row.opponent_abbr}.png`" style="height: 20px; width: auto;" alt="" />
+          <span style="font-size: 0.8rem">{{ row.opponent_abbr ?? '—' }}</span>
+        </div>
+      </td>
+    </template>
+
+    <!-- Fantasy / default mode: season_year + week -->
+    <template v-else>
+      <td style="color: var(--color-text-secondary)">{{ row.season_year ?? row.season ?? '—' }}</td>
+      <td style="color: var(--color-text-secondary)">{{ row.week ?? '—' }}</td>
+    </template>
 
     <!-- Offense stats -->
-    <template v-if="statType === 'offense'">
+    <template v-if="statType === 'offense' || !statType">
       <td>{{ row.pass_comp ?? '—' }}</td>
       <td>{{ row.pass_att ?? '—' }}</td>
       <td>{{ row.pass_yds ?? '—' }}</td>
@@ -54,5 +93,11 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ row: any; showWeek?: boolean; statType?: string }>()
+defineProps<{
+  row: any
+  statType?: string
+  mode?: 'career' | 'season' | 'range' | 'fantasy'
+}>()
+
+defineEmits<{ 'season-click': [year: number] }>()
 </script>
