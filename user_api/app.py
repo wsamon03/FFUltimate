@@ -26,6 +26,7 @@ async def lifespan(application: FastAPI):
 
 
 from user_api.routers.auth_router import router as auth_router
+from user_api.routers.config_router import router as config_router
 from user_api.routers.stats_router import router as stats_router
 from user_api.routers.players_router import router as players_router
 from user_api.routers.leagues_router import router as leagues_router
@@ -47,6 +48,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(config_router)
 app.include_router(stats_router)
 app.include_router(players_router)
 app.include_router(leagues_router)
