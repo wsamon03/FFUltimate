@@ -10,7 +10,6 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api/stats': 'http://localhost:8002',
       '/api': 'http://localhost:8001',
       '/auth/login': 'http://localhost:8001',
       '/auth/register': 'http://localhost:8001',
