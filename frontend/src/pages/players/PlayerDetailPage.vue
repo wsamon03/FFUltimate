@@ -158,6 +158,27 @@
 
       <AppTable v-else>
         <template #head>
+          <!-- Group header spanning row -->
+          <tr v-if="statTypeMode === 'offense'">
+            <th :colspan="leadingColCount" class="col-group-anchor"></th>
+            <th colspan="7" class="col-group-label col-group-pass">PASSING</th>
+            <th colspan="4" class="col-group-label col-group-rush">RUSHING</th>
+            <th colspan="5" class="col-group-label col-group-rec">RECEIVING</th>
+            <th colspan="2" class="col-group-label col-group-fum">FUMBLES</th>
+          </tr>
+          <tr v-else-if="statTypeMode === 'defense'">
+            <th :colspan="leadingColCount" class="col-group-anchor"></th>
+            <th colspan="4" class="col-group-label col-group-tkl">TACKLES</th>
+            <th colspan="2" class="col-group-label col-group-cov">PASS RUSH</th>
+            <th colspan="3" class="col-group-label col-group-to">COVERAGE</th>
+          </tr>
+          <tr v-else>
+            <th :colspan="leadingColCount" class="col-group-anchor"></th>
+            <th colspan="5" class="col-group-label col-group-kick">KICKING</th>
+            <th colspan="6" class="col-group-label col-group-punt">PUNTING</th>
+            <th colspan="8" class="col-group-label col-group-ret">RETURNS</th>
+          </tr>
+          <!-- Column header row -->
           <tr>
             <!-- Stats tab: mode-specific leading headers -->
             <template v-if="activeTab === 'Stats'">
@@ -200,50 +221,60 @@
 
             <!-- Offense stat headers -->
             <template v-if="statTypeMode === 'offense'">
-              <th class="cursor-pointer select-none" @click="sortBy('pass_comp')">Comp {{ sortIcon('pass_comp') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('pass_att')">Att {{ sortIcon('pass_att') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('pass_yds')">Pass Yds {{ sortIcon('pass_yds') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('pass_td')">Pass TD {{ sortIcon('pass_td') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('pass_int')">INT {{ sortIcon('pass_int') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('rush_att')">Rush Att {{ sortIcon('rush_att') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('rush_yds')">Rush Yds {{ sortIcon('rush_yds') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('rush_td')">Rush TD {{ sortIcon('rush_td') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('rec_receptions')">Rec {{ sortIcon('rec_receptions') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('rec_targets')">Tgts {{ sortIcon('rec_targets') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('rec_yds')">Rec Yds {{ sortIcon('rec_yds') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('rec_td')">Rec TD {{ sortIcon('rec_td') }}</th>
+              <th class="cursor-pointer select-none col-pass col-divider" @click="sortBy('pass_comp')">Comp {{ sortIcon('pass_comp') }}</th>
+              <th class="cursor-pointer select-none col-pass" @click="sortBy('pass_att')">Att {{ sortIcon('pass_att') }}</th>
+              <th class="cursor-pointer select-none col-pass" @click="sortBy('pass_yds')">Pass Yds {{ sortIcon('pass_yds') }}</th>
+              <th class="cursor-pointer select-none col-pass" @click="sortBy('pass_td')">Pass TD {{ sortIcon('pass_td') }}</th>
+              <th class="cursor-pointer select-none col-pass" @click="sortBy('pass_int')">INT {{ sortIcon('pass_int') }}</th>
+              <th class="cursor-pointer select-none col-pass" @click="sortBy('pass_qbr')">QBR {{ sortIcon('pass_qbr') }}</th>
+              <th class="cursor-pointer select-none col-pass" @click="sortBy('pass_rating')">RTG {{ sortIcon('pass_rating') }}</th>
+              <th class="cursor-pointer select-none col-rush col-divider" @click="sortBy('rush_att')">Rush Att {{ sortIcon('rush_att') }}</th>
+              <th class="cursor-pointer select-none col-rush" @click="sortBy('rush_yds')">Rush Yds {{ sortIcon('rush_yds') }}</th>
+              <th class="cursor-pointer select-none col-rush" @click="sortBy('rush_td')">Rush TD {{ sortIcon('rush_td') }}</th>
+              <th class="cursor-pointer select-none col-rush" @click="sortBy('rush_long')">R.Long {{ sortIcon('rush_long') }}</th>
+              <th class="cursor-pointer select-none col-rec col-divider" @click="sortBy('rec_receptions')">Rec {{ sortIcon('rec_receptions') }}</th>
+              <th class="cursor-pointer select-none col-rec" @click="sortBy('rec_targets')">Tgts {{ sortIcon('rec_targets') }}</th>
+              <th class="cursor-pointer select-none col-rec" @click="sortBy('rec_yds')">Rec Yds {{ sortIcon('rec_yds') }}</th>
+              <th class="cursor-pointer select-none col-rec" @click="sortBy('rec_td')">Rec TD {{ sortIcon('rec_td') }}</th>
+              <th class="cursor-pointer select-none col-rec" @click="sortBy('rec_long')">Rec Long {{ sortIcon('rec_long') }}</th>
+              <th class="cursor-pointer select-none col-fum col-divider" @click="sortBy('fum_total')">Fum {{ sortIcon('fum_total') }}</th>
+              <th class="cursor-pointer select-none col-fum" @click="sortBy('fum_lost')">Lost {{ sortIcon('fum_lost') }}</th>
             </template>
 
             <!-- Defense stat headers -->
             <template v-else-if="statTypeMode === 'defense'">
-              <th class="cursor-pointer select-none" @click="sortBy('def_solo')">Solo {{ sortIcon('def_solo') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('def_ast')">Ast {{ sortIcon('def_ast') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('def_sacks')">Sacks {{ sortIcon('def_sacks') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('def_tfl')">TFL {{ sortIcon('def_tfl') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('def_pd')">PD {{ sortIcon('def_pd') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('def_qb_hits')">QB Hits {{ sortIcon('def_qb_hits') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('def_int')">INT {{ sortIcon('def_int') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('def_td')">TD {{ sortIcon('def_td') }}</th>
+              <th class="cursor-pointer select-none col-tkl col-divider" @click="sortBy('def_solo')">Solo {{ sortIcon('def_solo') }}</th>
+              <th class="cursor-pointer select-none col-tkl" @click="sortBy('def_ast')">Ast {{ sortIcon('def_ast') }}</th>
+              <th class="cursor-pointer select-none col-tkl" @click="sortBy('def_sacks')">Sacks {{ sortIcon('def_sacks') }}</th>
+              <th class="cursor-pointer select-none col-tkl" @click="sortBy('def_tfl')">TFL {{ sortIcon('def_tfl') }}</th>
+              <th class="cursor-pointer select-none col-cov col-divider" @click="sortBy('def_pd')">PD {{ sortIcon('def_pd') }}</th>
+              <th class="cursor-pointer select-none col-cov" @click="sortBy('def_qb_hits')">QB Hits {{ sortIcon('def_qb_hits') }}</th>
+              <th class="cursor-pointer select-none col-to col-divider" @click="sortBy('def_int')">INT {{ sortIcon('def_int') }}</th>
+              <th class="cursor-pointer select-none col-to" @click="sortBy('def_int_yds')">INT Yds {{ sortIcon('def_int_yds') }}</th>
+              <th class="cursor-pointer select-none col-to" @click="sortBy('def_td')">TD {{ sortIcon('def_td') }}</th>
             </template>
 
             <!-- Special teams stat headers -->
             <template v-else-if="statTypeMode === 'special'">
-              <th class="cursor-pointer select-none" @click="sortBy('k_fg_make')">FGM {{ sortIcon('k_fg_make') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('k_fg_att')">FGA {{ sortIcon('k_fg_att') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('k_xp_make')">XPM {{ sortIcon('k_xp_make') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('k_xp_att')">XPA {{ sortIcon('k_xp_att') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('p_no')">Punts {{ sortIcon('p_no') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('p_yds')">Yds {{ sortIcon('p_yds') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('p_in20')">In 20 {{ sortIcon('p_in20') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('p_tb')">TB {{ sortIcon('p_tb') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('p_blk')">Blk {{ sortIcon('p_blk') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('p_long')">Long {{ sortIcon('p_long') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('ret_kick_no')">Kick Ret {{ sortIcon('ret_kick_no') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('ret_kick_yds')">Kick Yds {{ sortIcon('ret_kick_yds') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('ret_kick_td')">Kick TD {{ sortIcon('ret_kick_td') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('ret_punt_no')">Punt Ret {{ sortIcon('ret_punt_no') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('ret_punt_yds')">Punt Yds {{ sortIcon('ret_punt_yds') }}</th>
-              <th class="cursor-pointer select-none" @click="sortBy('ret_punt_td')">Punt TD {{ sortIcon('ret_punt_td') }}</th>
+              <th class="cursor-pointer select-none col-kick col-divider" @click="sortBy('k_fg_make')">FGM {{ sortIcon('k_fg_make') }}</th>
+              <th class="cursor-pointer select-none col-kick" @click="sortBy('k_fg_att')">FGA {{ sortIcon('k_fg_att') }}</th>
+              <th class="cursor-pointer select-none col-kick" @click="sortBy('k_fg_long')">FG Long {{ sortIcon('k_fg_long') }}</th>
+              <th class="cursor-pointer select-none col-kick" @click="sortBy('k_xp_make')">XPM {{ sortIcon('k_xp_make') }}</th>
+              <th class="cursor-pointer select-none col-kick" @click="sortBy('k_xp_att')">XPA {{ sortIcon('k_xp_att') }}</th>
+              <th class="cursor-pointer select-none col-punt col-divider" @click="sortBy('p_no')">Punts {{ sortIcon('p_no') }}</th>
+              <th class="cursor-pointer select-none col-punt" @click="sortBy('p_yds')">Yds {{ sortIcon('p_yds') }}</th>
+              <th class="cursor-pointer select-none col-punt" @click="sortBy('p_in20')">In 20 {{ sortIcon('p_in20') }}</th>
+              <th class="cursor-pointer select-none col-punt" @click="sortBy('p_tb')">TB {{ sortIcon('p_tb') }}</th>
+              <th class="cursor-pointer select-none col-punt" @click="sortBy('p_blk')">Blk {{ sortIcon('p_blk') }}</th>
+              <th class="cursor-pointer select-none col-punt" @click="sortBy('p_long')">P.Long {{ sortIcon('p_long') }}</th>
+              <th class="cursor-pointer select-none col-ret col-divider" @click="sortBy('ret_kick_no')">Kick Ret {{ sortIcon('ret_kick_no') }}</th>
+              <th class="cursor-pointer select-none col-ret" @click="sortBy('ret_kick_yds')">Kick Yds {{ sortIcon('ret_kick_yds') }}</th>
+              <th class="cursor-pointer select-none col-ret" @click="sortBy('ret_kick_td')">Kick TD {{ sortIcon('ret_kick_td') }}</th>
+              <th class="cursor-pointer select-none col-ret" @click="sortBy('ret_kick_long')">Kick Long {{ sortIcon('ret_kick_long') }}</th>
+              <th class="cursor-pointer select-none col-ret" @click="sortBy('ret_punt_no')">Punt Ret {{ sortIcon('ret_punt_no') }}</th>
+              <th class="cursor-pointer select-none col-ret" @click="sortBy('ret_punt_yds')">Punt Yds {{ sortIcon('ret_punt_yds') }}</th>
+              <th class="cursor-pointer select-none col-ret" @click="sortBy('ret_punt_td')">Punt TD {{ sortIcon('ret_punt_td') }}</th>
+              <th class="cursor-pointer select-none col-ret" @click="sortBy('ret_punt_long')">Punt Long {{ sortIcon('ret_punt_long') }}</th>
             </template>
           </tr>
         </template>
@@ -284,15 +315,24 @@ const VIEW_MODES: { value: ViewMode; label: string }[] = [
   { value: 'range',  label: 'Range' },
 ]
 
+// SUM stats: accumulated across games per season
 const STAT_KEYS = [
   'pass_comp', 'pass_att', 'pass_yds', 'pass_td', 'pass_int', 'pass_sacked',
   'rush_att', 'rush_yds', 'rush_td',
   'rec_receptions', 'rec_targets', 'rec_yds', 'rec_td',
-  'def_solo', 'def_ast', 'def_sacks', 'def_tfl', 'def_pd', 'def_qb_hits', 'def_td', 'def_int',
+  'fum_total', 'fum_lost', 'fum_rec',
+  'def_solo', 'def_ast', 'def_sacks', 'def_tfl', 'def_pd', 'def_qb_hits', 'def_td', 'def_int', 'def_int_yds',
   'k_fg_make', 'k_fg_att', 'k_xp_make', 'k_xp_att',
   'p_no', 'p_yds', 'p_in20', 'p_tb', 'p_blk', 'p_long',
   'ret_kick_no', 'ret_kick_yds', 'ret_kick_td',
   'ret_punt_no', 'ret_punt_yds', 'ret_punt_td',
+]
+
+// MAX stats: best single-game value per season (LONGs, QBR, RTG)
+const STAT_MAX_KEYS = [
+  'pass_qbr', 'pass_rating',
+  'rush_long', 'rec_long',
+  'ret_kick_long', 'ret_punt_long', 'k_fg_long',
 ]
 
 const currentYear = new Date().getFullYear()
@@ -314,6 +354,14 @@ const statTypes = [
   { value: 'defense',  label: 'Defense' },
   { value: 'special',  label: 'Special Teams' },
 ]
+
+// Leading column count for group header colspan (varies by tab + view mode)
+const leadingColCount = computed(() => {
+  if (activeTab.value === 'Fantasy') return 2
+  if (viewMode.value === 'career') return 1
+  if (viewMode.value === 'season') return 2
+  return 3 // range
+})
 
 // View mode state (Stats tab)
 const viewMode       = ref<ViewMode>('career')
@@ -386,10 +434,12 @@ const careerStats = computed(() => {
     if (!byYear.has(yr)) {
       const entry: Record<string, any> = { season_year: yr }
       STAT_KEYS.forEach(k => { entry[k] = 0 })
+      STAT_MAX_KEYS.forEach(k => { entry[k] = 0 })
       byYear.set(yr, entry)
     }
     const agg = byYear.get(yr)!
     STAT_KEYS.forEach(k => { agg[k] = (agg[k] || 0) + (row[k] || 0) })
+    STAT_MAX_KEYS.forEach(k => { agg[k] = Math.max(agg[k] || 0, row[k] || 0) })
   }
   return Array.from(byYear.values()).sort((a, b) => b.season_year - a.season_year)
 })

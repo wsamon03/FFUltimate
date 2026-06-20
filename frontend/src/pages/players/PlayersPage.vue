@@ -48,6 +48,27 @@
 
     <AppTable v-else>
       <template #head>
+        <!-- Group header spanning row -->
+        <tr v-if="statType === 'offense'">
+          <th colspan="5" class="col-group-anchor"></th>
+          <th colspan="7" class="col-group-label col-group-pass">PASSING</th>
+          <th colspan="4" class="col-group-label col-group-rush">RUSHING</th>
+          <th colspan="5" class="col-group-label col-group-rec">RECEIVING</th>
+          <th colspan="2" class="col-group-label col-group-fum">FUMBLES</th>
+        </tr>
+        <tr v-else-if="statType === 'defense'">
+          <th colspan="5" class="col-group-anchor"></th>
+          <th colspan="4" class="col-group-label col-group-tkl">TACKLES</th>
+          <th colspan="2" class="col-group-label col-group-cov">PASS RUSH</th>
+          <th colspan="3" class="col-group-label col-group-to">COVERAGE</th>
+        </tr>
+        <tr v-else>
+          <th colspan="5" class="col-group-anchor"></th>
+          <th colspan="5" class="col-group-label col-group-kick">KICKING</th>
+          <th colspan="6" class="col-group-label col-group-punt">PUNTING</th>
+          <th colspan="8" class="col-group-label col-group-ret">RETURNS</th>
+        </tr>
+        <!-- Column header row -->
         <tr>
           <th class="fav-cell"></th>
           <th class="helmet-cell"></th>
@@ -61,117 +82,147 @@
             Team <span v-if="sortColumn === 'team_abbr'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
           </th>
           <template v-if="statType === 'offense'">
-            <th class="sortable-header" title="Completions" @click="setSortColumn('pass_comp')">
+            <th class="sortable-header col-pass col-divider" title="Completions" @click="setSortColumn('pass_comp')">
               CMP <span v-if="sortColumn === 'pass_comp'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Pass Attempts" @click="setSortColumn('pass_att')">
+            <th class="sortable-header col-pass" title="Pass Attempts" @click="setSortColumn('pass_att')">
               ATT <span v-if="sortColumn === 'pass_att'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Pass Yards" @click="setSortColumn('pass_yds')">
+            <th class="sortable-header col-pass" title="Pass Yards" @click="setSortColumn('pass_yds')">
               YDS <span v-if="sortColumn === 'pass_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Pass TDs" @click="setSortColumn('pass_td')">
+            <th class="sortable-header col-pass" title="Pass TDs" @click="setSortColumn('pass_td')">
               TD <span v-if="sortColumn === 'pass_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Interceptions thrown" @click="setSortColumn('pass_int')">
+            <th class="sortable-header col-pass" title="Interceptions thrown" @click="setSortColumn('pass_int')">
               INT <span v-if="sortColumn === 'pass_int'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Rush Attempts" @click="setSortColumn('rush_att')">
+            <th class="sortable-header col-pass" title="QBR" @click="setSortColumn('pass_qbr')">
+              QBR <span v-if="sortColumn === 'pass_qbr'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-pass" title="Passer Rating" @click="setSortColumn('pass_rating')">
+              RTG <span v-if="sortColumn === 'pass_rating'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-rush col-divider" title="Rush Attempts" @click="setSortColumn('rush_att')">
               ATT <span v-if="sortColumn === 'rush_att'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Rush Yards" @click="setSortColumn('rush_yds')">
+            <th class="sortable-header col-rush" title="Rush Yards" @click="setSortColumn('rush_yds')">
               YDS <span v-if="sortColumn === 'rush_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Rush TDs" @click="setSortColumn('rush_td')">
+            <th class="sortable-header col-rush" title="Rush TDs" @click="setSortColumn('rush_td')">
               TD <span v-if="sortColumn === 'rush_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Receptions" @click="setSortColumn('rec_receptions')">
+            <th class="sortable-header col-rush" title="Longest Rush" @click="setSortColumn('rush_long')">
+              LONG <span v-if="sortColumn === 'rush_long'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-rec col-divider" title="Receptions" @click="setSortColumn('rec_receptions')">
               REC <span v-if="sortColumn === 'rec_receptions'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Targets" @click="setSortColumn('rec_targets')">
+            <th class="sortable-header col-rec" title="Targets" @click="setSortColumn('rec_targets')">
               TGT <span v-if="sortColumn === 'rec_targets'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Receiving Yards" @click="setSortColumn('rec_yds')">
+            <th class="sortable-header col-rec" title="Receiving Yards" @click="setSortColumn('rec_yds')">
               YDS <span v-if="sortColumn === 'rec_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Receiving TDs" @click="setSortColumn('rec_td')">
+            <th class="sortable-header col-rec" title="Receiving TDs" @click="setSortColumn('rec_td')">
               TD <span v-if="sortColumn === 'rec_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-rec" title="Longest Reception" @click="setSortColumn('rec_long')">
+              LONG <span v-if="sortColumn === 'rec_long'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-fum col-divider" title="Fumbles" @click="setSortColumn('fum_total')">
+              FUM <span v-if="sortColumn === 'fum_total'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-fum" title="Fumbles Lost" @click="setSortColumn('fum_lost')">
+              LOST <span v-if="sortColumn === 'fum_lost'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
           </template>
           <template v-else-if="statType === 'defense'">
-            <th class="sortable-header" title="Solo Tackles" @click="setSortColumn('def_solo')">
+            <th class="sortable-header col-tkl col-divider" title="Solo Tackles" @click="setSortColumn('def_solo')">
               SOLO <span v-if="sortColumn === 'def_solo'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Assisted Tackles" @click="setSortColumn('def_ast')">
+            <th class="sortable-header col-tkl" title="Assisted Tackles" @click="setSortColumn('def_ast')">
               AST <span v-if="sortColumn === 'def_ast'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Sacks" @click="setSortColumn('def_sacks')">
+            <th class="sortable-header col-tkl" title="Sacks" @click="setSortColumn('def_sacks')">
               SACKS <span v-if="sortColumn === 'def_sacks'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Tackles for Loss" @click="setSortColumn('def_tfl')">
+            <th class="sortable-header col-tkl" title="Tackles for Loss" @click="setSortColumn('def_tfl')">
               TFL <span v-if="sortColumn === 'def_tfl'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Passes Defensed" @click="setSortColumn('def_pd')">
+            <th class="sortable-header col-cov col-divider" title="Passes Defensed" @click="setSortColumn('def_pd')">
               PD <span v-if="sortColumn === 'def_pd'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="QB Hits" @click="setSortColumn('def_qb_hits')">
+            <th class="sortable-header col-cov" title="QB Hits" @click="setSortColumn('def_qb_hits')">
               QB HIT <span v-if="sortColumn === 'def_qb_hits'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Defensive TDs" @click="setSortColumn('def_td')">
-              DEF TD <span v-if="sortColumn === 'def_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
-            </th>
-            <th class="sortable-header" title="Interceptions" @click="setSortColumn('def_int')">
+            <th class="sortable-header col-to col-divider" title="Interceptions" @click="setSortColumn('def_int')">
               INT <span v-if="sortColumn === 'def_int'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-to" title="Interception Return Yards" @click="setSortColumn('def_int_yds')">
+              INT YDS <span v-if="sortColumn === 'def_int_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-to" title="Defensive TDs" @click="setSortColumn('def_td')">
+              DEF TD <span v-if="sortColumn === 'def_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
           </template>
           <template v-else>
-            <th class="sortable-header" title="Field Goals Made" @click="setSortColumn('k_fg_make')">
+            <th class="sortable-header col-kick col-divider" title="Field Goals Made" @click="setSortColumn('k_fg_make')">
               FGM <span v-if="sortColumn === 'k_fg_make'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Field Goal Attempts" @click="setSortColumn('k_fg_att')">
+            <th class="sortable-header col-kick" title="Field Goal Attempts" @click="setSortColumn('k_fg_att')">
               FGA <span v-if="sortColumn === 'k_fg_att'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Extra Points Made" @click="setSortColumn('k_xp_make')">
+            <th class="sortable-header col-kick" title="Longest Field Goal" @click="setSortColumn('k_fg_long')">
+              FG LONG <span v-if="sortColumn === 'k_fg_long'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-kick" title="Extra Points Made" @click="setSortColumn('k_xp_make')">
               XPM <span v-if="sortColumn === 'k_xp_make'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Extra Point Attempts" @click="setSortColumn('k_xp_att')">
+            <th class="sortable-header col-kick" title="Extra Point Attempts" @click="setSortColumn('k_xp_att')">
               XPA <span v-if="sortColumn === 'k_xp_att'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Punts" @click="setSortColumn('p_no')">
+            <th class="sortable-header col-punt col-divider" title="Punts" @click="setSortColumn('p_no')">
               PUNTS <span v-if="sortColumn === 'p_no'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Punt Yards" @click="setSortColumn('p_yds')">
+            <th class="sortable-header col-punt" title="Punt Yards" @click="setSortColumn('p_yds')">
               P YDS <span v-if="sortColumn === 'p_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Inside 20" @click="setSortColumn('p_in20')">
+            <th class="sortable-header col-punt" title="Inside 20" @click="setSortColumn('p_in20')">
               IN20 <span v-if="sortColumn === 'p_in20'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Touchbacks" @click="setSortColumn('p_tb')">
+            <th class="sortable-header col-punt" title="Touchbacks" @click="setSortColumn('p_tb')">
               TB <span v-if="sortColumn === 'p_tb'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Blocked Punts" @click="setSortColumn('p_blk')">
+            <th class="sortable-header col-punt" title="Blocked Punts" @click="setSortColumn('p_blk')">
               BLK <span v-if="sortColumn === 'p_blk'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Longest Punt" @click="setSortColumn('p_long')">
+            <th class="sortable-header col-punt" title="Longest Punt" @click="setSortColumn('p_long')">
               LONG <span v-if="sortColumn === 'p_long'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Kick Returns" @click="setSortColumn('ret_kick_no')">
+            <th class="sortable-header col-ret col-divider" title="Kick Returns" @click="setSortColumn('ret_kick_no')">
               KR <span v-if="sortColumn === 'ret_kick_no'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Kick Return Yards" @click="setSortColumn('ret_kick_yds')">
+            <th class="sortable-header col-ret" title="Kick Return Yards" @click="setSortColumn('ret_kick_yds')">
               KR YDS <span v-if="sortColumn === 'ret_kick_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Kick Return TDs" @click="setSortColumn('ret_kick_td')">
+            <th class="sortable-header col-ret" title="Kick Return TDs" @click="setSortColumn('ret_kick_td')">
               KR TD <span v-if="sortColumn === 'ret_kick_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Punt Returns" @click="setSortColumn('ret_punt_no')">
+            <th class="sortable-header col-ret" title="Longest Kick Return" @click="setSortColumn('ret_kick_long')">
+              KR LONG <span v-if="sortColumn === 'ret_kick_long'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-ret" title="Punt Returns" @click="setSortColumn('ret_punt_no')">
               PR <span v-if="sortColumn === 'ret_punt_no'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Punt Return Yards" @click="setSortColumn('ret_punt_yds')">
+            <th class="sortable-header col-ret" title="Punt Return Yards" @click="setSortColumn('ret_punt_yds')">
               PR YDS <span v-if="sortColumn === 'ret_punt_yds'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
-            <th class="sortable-header" title="Punt Return TDs" @click="setSortColumn('ret_punt_td')">
+            <th class="sortable-header col-ret" title="Punt Return TDs" @click="setSortColumn('ret_punt_td')">
               PR TD <span v-if="sortColumn === 'ret_punt_td'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+            </th>
+            <th class="sortable-header col-ret" title="Longest Punt Return" @click="setSortColumn('ret_punt_long')">
+              PR LONG <span v-if="sortColumn === 'ret_punt_long'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
             </th>
           </template>
         </tr>
@@ -203,46 +254,56 @@
         </td>
         <td style="color: var(--color-text-secondary); font-size: 0.875rem">{{ p.team_abbr || '—' }}</td>
         <template v-if="statType === 'offense'">
-          <td>{{ p.pass_comp }}</td>
-          <td>{{ p.pass_att }}</td>
-          <td>{{ p.pass_yds }}</td>
-          <td>{{ p.pass_td }}</td>
-          <td>{{ p.pass_int }}</td>
-          <td>{{ p.rush_att }}</td>
-          <td>{{ p.rush_yds }}</td>
-          <td>{{ p.rush_td }}</td>
-          <td>{{ p.rec_receptions }}</td>
-          <td>{{ p.rec_targets }}</td>
-          <td>{{ p.rec_yds }}</td>
-          <td>{{ p.rec_td }}</td>
+          <td class="col-pass col-divider">{{ p.pass_comp }}</td>
+          <td class="col-pass">{{ p.pass_att }}</td>
+          <td class="col-pass">{{ p.pass_yds }}</td>
+          <td class="col-pass">{{ p.pass_td }}</td>
+          <td class="col-pass">{{ p.pass_int }}</td>
+          <td class="col-pass">{{ typeof p.pass_qbr === 'number' ? p.pass_qbr.toFixed(1) : p.pass_qbr }}</td>
+          <td class="col-pass">{{ typeof p.pass_rating === 'number' ? p.pass_rating.toFixed(1) : p.pass_rating }}</td>
+          <td class="col-rush col-divider">{{ p.rush_att }}</td>
+          <td class="col-rush">{{ p.rush_yds }}</td>
+          <td class="col-rush">{{ p.rush_td }}</td>
+          <td class="col-rush">{{ p.rush_long }}</td>
+          <td class="col-rec col-divider">{{ p.rec_receptions }}</td>
+          <td class="col-rec">{{ p.rec_targets }}</td>
+          <td class="col-rec">{{ p.rec_yds }}</td>
+          <td class="col-rec">{{ p.rec_td }}</td>
+          <td class="col-rec">{{ p.rec_long }}</td>
+          <td class="col-fum col-divider">{{ p.fum_total }}</td>
+          <td class="col-fum">{{ p.fum_lost }}</td>
         </template>
         <template v-else-if="statType === 'defense'">
-          <td>{{ p.def_solo }}</td>
-          <td>{{ p.def_ast }}</td>
-          <td>{{ p.def_sacks }}</td>
-          <td>{{ p.def_tfl }}</td>
-          <td>{{ p.def_pd }}</td>
-          <td>{{ p.def_qb_hits }}</td>
-          <td>{{ p.def_td }}</td>
-          <td>{{ p.def_int }}</td>
+          <td class="col-tkl col-divider">{{ p.def_solo }}</td>
+          <td class="col-tkl">{{ p.def_ast }}</td>
+          <td class="col-tkl">{{ p.def_sacks }}</td>
+          <td class="col-tkl">{{ p.def_tfl }}</td>
+          <td class="col-cov col-divider">{{ p.def_pd }}</td>
+          <td class="col-cov">{{ p.def_qb_hits }}</td>
+          <td class="col-to col-divider">{{ p.def_int }}</td>
+          <td class="col-to">{{ p.def_int_yds }}</td>
+          <td class="col-to">{{ p.def_td }}</td>
         </template>
         <template v-else>
-          <td>{{ p.k_fg_make }}</td>
-          <td>{{ p.k_fg_att }}</td>
-          <td>{{ p.k_xp_make }}</td>
-          <td>{{ p.k_xp_att }}</td>
-          <td>{{ p.p_no }}</td>
-          <td>{{ p.p_yds }}</td>
-          <td>{{ p.p_in20 }}</td>
-          <td>{{ p.p_tb }}</td>
-          <td>{{ p.p_blk }}</td>
-          <td>{{ p.p_long }}</td>
-          <td>{{ p.ret_kick_no }}</td>
-          <td>{{ p.ret_kick_yds }}</td>
-          <td>{{ p.ret_kick_td }}</td>
-          <td>{{ p.ret_punt_no }}</td>
-          <td>{{ p.ret_punt_yds }}</td>
-          <td>{{ p.ret_punt_td }}</td>
+          <td class="col-kick col-divider">{{ p.k_fg_make }}</td>
+          <td class="col-kick">{{ p.k_fg_att }}</td>
+          <td class="col-kick">{{ p.k_fg_long }}</td>
+          <td class="col-kick">{{ p.k_xp_make }}</td>
+          <td class="col-kick">{{ p.k_xp_att }}</td>
+          <td class="col-punt col-divider">{{ p.p_no }}</td>
+          <td class="col-punt">{{ p.p_yds }}</td>
+          <td class="col-punt">{{ p.p_in20 }}</td>
+          <td class="col-punt">{{ p.p_tb }}</td>
+          <td class="col-punt">{{ p.p_blk }}</td>
+          <td class="col-punt">{{ p.p_long }}</td>
+          <td class="col-ret col-divider">{{ p.ret_kick_no }}</td>
+          <td class="col-ret">{{ p.ret_kick_yds }}</td>
+          <td class="col-ret">{{ p.ret_kick_td }}</td>
+          <td class="col-ret">{{ p.ret_kick_long }}</td>
+          <td class="col-ret">{{ p.ret_punt_no }}</td>
+          <td class="col-ret">{{ p.ret_punt_yds }}</td>
+          <td class="col-ret">{{ p.ret_punt_td }}</td>
+          <td class="col-ret">{{ p.ret_punt_long }}</td>
         </template>
       </tr>
     </AppTable>
