@@ -18,7 +18,15 @@ BEGIN
         ('DP', 'Defensive Player'),
         ('P',  'Punter'),
         ('HS', 'Defensive Specialist'),
-        ('',   'Non-position / Special')
+        ('',   'Non-position / Special'),
+        ('C',  'Center'),
+        ('DE', 'Defensive End'),
+        ('DT', 'Defensive Tackle'),
+        ('FB', 'Fullback'),
+        ('G',  'Guard'),
+        ('LS', 'Long Snapper'),
+        ('OT', 'Offensive Tackle'),
+        ('PK', 'Placekicker')
     ON CONFLICT (position_code) DO NOTHING;
 END;
 $$;
