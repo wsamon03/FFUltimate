@@ -78,8 +78,8 @@
           <th class="sortable-header" @click="setSortColumn('position_code')">
             Pos <span v-if="sortColumn === 'position_code'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
           </th>
-          <th class="sortable-header" @click="setSortColumn('team_abbr')">
-            Team <span v-if="sortColumn === 'team_abbr'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
+          <th class="sortable-header" @click="setSortColumn('team_abbrs')">
+            Team <span v-if="sortColumn === 'team_abbrs'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
           </th>
           <template v-if="statType === 'offense'">
             <th class="sortable-header col-pass col-divider" title="Completions" @click="setSortColumn('pass_comp')">
@@ -236,7 +236,9 @@
           />
         </td>
         <td class="helmet-cell">
-          <TeamHelmet v-if="p.team_abbr" :abbr="p.team_abbr" :size="24" />
+          <template v-if="p.team_abbrs && p.team_abbrs.length">
+            <TeamHelmet v-for="abbr in p.team_abbrs" :key="abbr" :abbr="abbr" :size="24" />
+          </template>
           <span v-else style="color: var(--color-text-secondary)">—</span>
         </td>
         <td>
@@ -252,7 +254,7 @@
           <PositionBadge v-if="p.position_code" :position="p.position_code" />
           <span v-else style="color: var(--color-text-secondary)">—</span>
         </td>
-        <td style="color: var(--color-text-secondary); font-size: 0.875rem">{{ p.team_abbr || '—' }}</td>
+        <td style="color: var(--color-text-secondary); font-size: 0.875rem">{{ p.team_abbrs?.join(' / ') || '—' }}</td>
         <template v-if="statType === 'offense'">
           <td class="col-pass col-divider">{{ p.pass_comp }}</td>
           <td class="col-pass">{{ p.pass_att }}</td>
@@ -386,9 +388,9 @@ function setSortColumn(col: string) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
     sortColumn.value = col
-    // Default to asc for text columns, desc for numeric
+    // Default to asc for text/array columns, desc for numeric
     const sample = players.value[0]?.[col]
-    sortDir.value = typeof sample === 'string' ? 'asc' : 'desc'
+    sortDir.value = (typeof sample === 'string' || Array.isArray(sample)) ? 'asc' : 'desc'
   }
 }
 

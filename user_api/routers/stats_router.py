@@ -218,8 +218,7 @@ async def get_player_season_stats(
             p.id::text AS player_id,
             p.name,
             COALESCE(p.position_code, '') AS position_code,
-            t.abbr AS team_abbr,
-            t.full_name AS team_name,
+            ARRAY_AGG(DISTINCT t2.abbr ORDER BY t2.abbr) FILTER (WHERE t2.abbr IS NOT NULL) AS team_abbrs,
             COALESCE(SUM(pgs.pass_comp), 0)::int     AS pass_comp,
             COALESCE(SUM(pgs.pass_att), 0)::int      AS pass_att,
             COALESCE(SUM(pgs.pass_yds), 0)::int      AS pass_yds,
@@ -270,12 +269,12 @@ async def get_player_season_stats(
             COALESCE(MAX(pgs.ret_punt_long), 0)::int  AS ret_punt_long
         FROM player_game_stats pgs
         JOIN players p ON pgs.player_id = p.id
-        LEFT JOIN teams t ON p.team_id = t.id
+        LEFT JOIN teams t2 ON pgs.team_id = t2.id
         JOIN games g ON pgs.game_id = g.id
         WHERE g.season_year = $1
           AND ($2::text IS NULL OR p.name ILIKE '%' || $2 || '%')
           AND ($3::text IS NULL OR p.position_code = $3)
-        GROUP BY p.id, p.name, p.position_code, t.abbr, t.full_name
+        GROUP BY p.id, p.name, p.position_code
         ORDER BY
             (COALESCE(SUM(pgs.pass_yds), 0) + COALESCE(SUM(pgs.rush_yds), 0) + COALESCE(SUM(pgs.rec_yds), 0)) DESC,
             (COALESCE(SUM(pgs.def_solo), 0) + COALESCE(SUM(pgs.def_ast), 0)) DESC,
