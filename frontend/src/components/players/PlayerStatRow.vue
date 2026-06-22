@@ -1,7 +1,15 @@
 <template>
   <tr>
+    <!-- Total mode: colspan leading cells with "Total" label -->
+    <template v-if="mode === 'total'">
+      <td
+        :colspan="leadingCols ?? 2"
+        class="total-label-cell"
+      >Total</td>
+    </template>
+
     <!-- Career mode: clickable season year + teams -->
-    <template v-if="mode === 'career'">
+    <template v-else-if="mode === 'career'">
       <td>
         <button
           class="text-sm font-medium hover:underline"
@@ -58,60 +66,60 @@
 
     <!-- Offense stats -->
     <template v-if="statType === 'offense' || !statType">
-      <td class="col-pass col-divider">{{ row.pass_comp ?? '—' }}</td>
-      <td class="col-pass">{{ row.pass_att ?? '—' }}</td>
-      <td class="col-pass">{{ row.pass_yds ?? '—' }}</td>
-      <td class="col-pass">{{ row.pass_td ?? '—' }}</td>
-      <td class="col-pass">{{ row.pass_int ?? '—' }}</td>
-      <td class="col-pass">{{ row.pass_qbr != null ? Number(row.pass_qbr).toFixed(1) : '—' }}</td>
-      <td class="col-pass">{{ row.pass_rating != null ? Number(row.pass_rating).toFixed(1) : '—' }}</td>
-      <td class="col-rush col-divider">{{ row.rush_att ?? '—' }}</td>
-      <td class="col-rush">{{ row.rush_yds ?? '—' }}</td>
-      <td class="col-rush">{{ row.rush_td ?? '—' }}</td>
-      <td class="col-rush">{{ row.rush_long ?? '—' }}</td>
-      <td class="col-rec col-divider">{{ row.rec_receptions ?? '—' }}</td>
-      <td class="col-rec">{{ row.rec_targets ?? '—' }}</td>
-      <td class="col-rec">{{ row.rec_yds ?? '—' }}</td>
-      <td class="col-rec">{{ row.rec_td ?? '—' }}</td>
-      <td class="col-rec">{{ row.rec_long ?? '—' }}</td>
-      <td class="col-fum col-divider">{{ row.fum_total ?? '—' }}</td>
-      <td class="col-fum">{{ row.fum_lost ?? '—' }}</td>
+      <td :class="['col-pass', 'col-divider', { 'total-stat-cell': mode === 'total' }]">{{ row.pass_comp ?? '—' }}</td>
+      <td :class="['col-pass', { 'total-stat-cell': mode === 'total' }]">{{ row.pass_att ?? '—' }}</td>
+      <td :class="['col-pass', { 'total-stat-cell': mode === 'total' }]">{{ row.pass_yds ?? '—' }}</td>
+      <td :class="['col-pass', { 'total-stat-cell': mode === 'total' }]">{{ row.pass_td ?? '—' }}</td>
+      <td :class="['col-pass', { 'total-stat-cell': mode === 'total' }]">{{ row.pass_int ?? '—' }}</td>
+      <td :class="['col-pass', { 'total-stat-cell': mode === 'total' }]">{{ row.pass_qbr != null ? Number(row.pass_qbr).toFixed(1) : '—' }}</td>
+      <td :class="['col-pass', { 'total-stat-cell': mode === 'total' }]">{{ row.pass_rating != null ? Number(row.pass_rating).toFixed(1) : '—' }}</td>
+      <td :class="['col-rush', 'col-divider', { 'total-stat-cell': mode === 'total' }]">{{ row.rush_att ?? '—' }}</td>
+      <td :class="['col-rush', { 'total-stat-cell': mode === 'total' }]">{{ row.rush_yds ?? '—' }}</td>
+      <td :class="['col-rush', { 'total-stat-cell': mode === 'total' }]">{{ row.rush_td ?? '—' }}</td>
+      <td :class="['col-rush', { 'total-stat-cell': mode === 'total' }]">{{ row.rush_long ?? '—' }}</td>
+      <td :class="['col-rec', 'col-divider', { 'total-stat-cell': mode === 'total' }]">{{ row.rec_receptions ?? '—' }}</td>
+      <td :class="['col-rec', { 'total-stat-cell': mode === 'total' }]">{{ row.rec_targets ?? '—' }}</td>
+      <td :class="['col-rec', { 'total-stat-cell': mode === 'total' }]">{{ row.rec_yds ?? '—' }}</td>
+      <td :class="['col-rec', { 'total-stat-cell': mode === 'total' }]">{{ row.rec_td ?? '—' }}</td>
+      <td :class="['col-rec', { 'total-stat-cell': mode === 'total' }]">{{ row.rec_long ?? '—' }}</td>
+      <td :class="['col-fum', 'col-divider', { 'total-stat-cell': mode === 'total' }]">{{ row.fum_total ?? '—' }}</td>
+      <td :class="['col-fum', { 'total-stat-cell': mode === 'total' }]">{{ row.fum_lost ?? '—' }}</td>
     </template>
 
     <!-- Defense stats -->
     <template v-else-if="statType === 'defense'">
-      <td class="col-tkl col-divider">{{ row.def_solo ?? '—' }}</td>
-      <td class="col-tkl">{{ row.def_ast ?? '—' }}</td>
-      <td class="col-tkl">{{ row.def_sacks ?? '—' }}</td>
-      <td class="col-tkl">{{ row.def_tfl ?? '—' }}</td>
-      <td class="col-cov col-divider">{{ row.def_pd ?? '—' }}</td>
-      <td class="col-cov">{{ row.def_qb_hits ?? '—' }}</td>
-      <td class="col-to col-divider">{{ row.def_int ?? '—' }}</td>
-      <td class="col-to">{{ row.def_int_yds ?? '—' }}</td>
-      <td class="col-to">{{ row.def_td ?? '—' }}</td>
+      <td :class="['col-tkl', 'col-divider', { 'total-stat-cell': mode === 'total' }]">{{ row.def_solo ?? '—' }}</td>
+      <td :class="['col-tkl', { 'total-stat-cell': mode === 'total' }]">{{ row.def_ast ?? '—' }}</td>
+      <td :class="['col-tkl', { 'total-stat-cell': mode === 'total' }]">{{ row.def_sacks ?? '—' }}</td>
+      <td :class="['col-tkl', { 'total-stat-cell': mode === 'total' }]">{{ row.def_tfl ?? '—' }}</td>
+      <td :class="['col-cov', 'col-divider', { 'total-stat-cell': mode === 'total' }]">{{ row.def_pd ?? '—' }}</td>
+      <td :class="['col-cov', { 'total-stat-cell': mode === 'total' }]">{{ row.def_qb_hits ?? '—' }}</td>
+      <td :class="['col-to', 'col-divider', { 'total-stat-cell': mode === 'total' }]">{{ row.def_int ?? '—' }}</td>
+      <td :class="['col-to', { 'total-stat-cell': mode === 'total' }]">{{ row.def_int_yds ?? '—' }}</td>
+      <td :class="['col-to', { 'total-stat-cell': mode === 'total' }]">{{ row.def_td ?? '—' }}</td>
     </template>
 
     <!-- Special teams stats -->
     <template v-else-if="statType === 'special'">
-      <td class="col-kick col-divider">{{ row.k_fg_make ?? '—' }}</td>
-      <td class="col-kick">{{ row.k_fg_att ?? '—' }}</td>
-      <td class="col-kick">{{ row.k_fg_long ?? '—' }}</td>
-      <td class="col-kick">{{ row.k_xp_make ?? '—' }}</td>
-      <td class="col-kick">{{ row.k_xp_att ?? '—' }}</td>
-      <td class="col-punt col-divider">{{ row.p_no ?? '—' }}</td>
-      <td class="col-punt">{{ row.p_yds ?? '—' }}</td>
-      <td class="col-punt">{{ row.p_in20 ?? '—' }}</td>
-      <td class="col-punt">{{ row.p_tb ?? '—' }}</td>
-      <td class="col-punt">{{ row.p_blk ?? '—' }}</td>
-      <td class="col-punt">{{ row.p_long ?? '—' }}</td>
-      <td class="col-ret col-divider">{{ row.ret_kick_no ?? '—' }}</td>
-      <td class="col-ret">{{ row.ret_kick_yds ?? '—' }}</td>
-      <td class="col-ret">{{ row.ret_kick_td ?? '—' }}</td>
-      <td class="col-ret">{{ row.ret_kick_long ?? '—' }}</td>
-      <td class="col-ret">{{ row.ret_punt_no ?? '—' }}</td>
-      <td class="col-ret">{{ row.ret_punt_yds ?? '—' }}</td>
-      <td class="col-ret">{{ row.ret_punt_td ?? '—' }}</td>
-      <td class="col-ret">{{ row.ret_punt_long ?? '—' }}</td>
+      <td :class="['col-kick', 'col-divider', { 'total-stat-cell': mode === 'total' }]">{{ row.k_fg_make ?? '—' }}</td>
+      <td :class="['col-kick', { 'total-stat-cell': mode === 'total' }]">{{ row.k_fg_att ?? '—' }}</td>
+      <td :class="['col-kick', { 'total-stat-cell': mode === 'total' }]">{{ row.k_fg_long ?? '—' }}</td>
+      <td :class="['col-kick', { 'total-stat-cell': mode === 'total' }]">{{ row.k_xp_make ?? '—' }}</td>
+      <td :class="['col-kick', { 'total-stat-cell': mode === 'total' }]">{{ row.k_xp_att ?? '—' }}</td>
+      <td :class="['col-punt', 'col-divider', { 'total-stat-cell': mode === 'total' }]">{{ row.p_no ?? '—' }}</td>
+      <td :class="['col-punt', { 'total-stat-cell': mode === 'total' }]">{{ row.p_yds ?? '—' }}</td>
+      <td :class="['col-punt', { 'total-stat-cell': mode === 'total' }]">{{ row.p_in20 ?? '—' }}</td>
+      <td :class="['col-punt', { 'total-stat-cell': mode === 'total' }]">{{ row.p_tb ?? '—' }}</td>
+      <td :class="['col-punt', { 'total-stat-cell': mode === 'total' }]">{{ row.p_blk ?? '—' }}</td>
+      <td :class="['col-punt', { 'total-stat-cell': mode === 'total' }]">{{ row.p_long ?? '—' }}</td>
+      <td :class="['col-ret', 'col-divider', { 'total-stat-cell': mode === 'total' }]">{{ row.ret_kick_no ?? '—' }}</td>
+      <td :class="['col-ret', { 'total-stat-cell': mode === 'total' }]">{{ row.ret_kick_yds ?? '—' }}</td>
+      <td :class="['col-ret', { 'total-stat-cell': mode === 'total' }]">{{ row.ret_kick_td ?? '—' }}</td>
+      <td :class="['col-ret', { 'total-stat-cell': mode === 'total' }]">{{ row.ret_kick_long ?? '—' }}</td>
+      <td :class="['col-ret', { 'total-stat-cell': mode === 'total' }]">{{ row.ret_punt_no ?? '—' }}</td>
+      <td :class="['col-ret', { 'total-stat-cell': mode === 'total' }]">{{ row.ret_punt_yds ?? '—' }}</td>
+      <td :class="['col-ret', { 'total-stat-cell': mode === 'total' }]">{{ row.ret_punt_td ?? '—' }}</td>
+      <td :class="['col-ret', { 'total-stat-cell': mode === 'total' }]">{{ row.ret_punt_long ?? '—' }}</td>
     </template>
   </tr>
 </template>
@@ -122,8 +130,20 @@ import TeamHelmet from '@/components/common/TeamHelmet.vue'
 defineProps<{
   row: any
   statType?: string
-  mode?: 'career' | 'season' | 'range' | 'fantasy'
+  mode?: 'career' | 'season' | 'range' | 'fantasy' | 'total'
+  leadingCols?: number
 }>()
 
 defineEmits<{ 'season-click': [year: number] }>()
 </script>
+
+<style scoped>
+.total-label-cell {
+  font-weight: bold;
+  color: var(--color-text-primary);
+  border-top: 2px solid var(--color-border);
+}
+
+.total-stat-cell {
+  border-top: 2px solid var(--color-border);
+}</style>

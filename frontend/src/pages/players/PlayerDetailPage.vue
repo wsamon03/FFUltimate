@@ -291,6 +291,13 @@
           :stat-type="statTypeMode"
           @season-click="goToSeason"
         />
+        <PlayerStatRow
+          v-if="totalRow"
+          :row="totalRow"
+          mode="total"
+          :leading-cols="totalRowLeadingCols"
+          :stat-type="statTypeMode"
+        />
       </AppTable>
     </template>
 
@@ -485,6 +492,22 @@ const displayStats = computed(() => {
     const diff = Number(av) - Number(bv)
     return sortDir.value === 'asc' ? diff : -diff
   })
+})
+
+const totalRow = computed(() => {
+  const rows = displayStats.value
+  if (rows.length === 0) return null
+  const total: Record<string, any> = {}
+  STAT_KEYS.forEach(k => { total[k] = rows.reduce((s, r) => s + (r[k] || 0), 0) })
+  STAT_MAX_KEYS.forEach(k => { total[k] = Math.max(0, ...rows.map(r => r[k] || 0)) })
+  return total
+})
+
+const totalRowLeadingCols = computed(() => {
+  if (activeTab.value === 'Fantasy') return 2
+  if (viewMode.value === 'career') return 2
+  if (viewMode.value === 'season') return 3
+  return 4  // range
 })
 
 function sortBy(key: string) {
