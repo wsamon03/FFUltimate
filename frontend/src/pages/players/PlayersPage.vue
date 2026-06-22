@@ -78,9 +78,6 @@
           <th class="sortable-header" @click="setSortColumn('position_code')">
             Pos <span v-if="sortColumn === 'position_code'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
           </th>
-          <th class="sortable-header" @click="setSortColumn('team_abbrs')">
-            Team <span v-if="sortColumn === 'team_abbrs'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
-          </th>
           <template v-if="statType === 'offense'">
             <th class="sortable-header col-pass col-divider" title="Completions" @click="setSortColumn('pass_comp')">
               CMP <span v-if="sortColumn === 'pass_comp'" class="sort-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span>
@@ -254,7 +251,6 @@
           <PositionBadge v-if="p.position_code" :position="p.position_code" />
           <span v-else style="color: var(--color-text-secondary)">—</span>
         </td>
-        <td style="color: var(--color-text-secondary); font-size: 0.875rem">{{ p.team_abbrs?.join(' / ') || '—' }}</td>
         <template v-if="statType === 'offense'">
           <td class="col-pass col-divider">{{ p.pass_comp }}</td>
           <td class="col-pass">{{ p.pass_att }}</td>
