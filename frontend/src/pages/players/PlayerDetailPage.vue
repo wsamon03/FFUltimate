@@ -182,12 +182,14 @@
           <tr>
             <!-- Stats tab: mode-specific leading headers -->
             <template v-if="activeTab === 'Stats'">
-              <th
-                v-if="viewMode === 'career'"
-                class="cursor-pointer select-none whitespace-nowrap"
-                style="color: var(--color-text-secondary)"
-                @click="sortBy('season_year')"
-              >Season {{ sortIcon('season_year') }}</th>
+              <template v-if="viewMode === 'career'">
+                <th
+                  class="cursor-pointer select-none whitespace-nowrap"
+                  style="color: var(--color-text-secondary)"
+                  @click="sortBy('season_year')"
+                >Season {{ sortIcon('season_year') }}</th>
+                <th style="color: var(--color-text-secondary)">Teams</th>
+              </template>
 
               <template v-else-if="viewMode === 'season'">
                 <th
@@ -195,6 +197,7 @@
                   style="color: var(--color-text-secondary)"
                   @click="sortBy('week')"
                 >Wk {{ sortIcon('week') }}</th>
+                <th style="color: var(--color-text-secondary)">Team</th>
                 <th style="color: var(--color-text-secondary)">Opponent</th>
               </template>
 
@@ -209,6 +212,7 @@
                   style="color: var(--color-text-secondary)"
                   @click="sortBy('week')"
                 >Wk {{ sortIcon('week') }}</th>
+                <th style="color: var(--color-text-secondary)">Team</th>
                 <th style="color: var(--color-text-secondary)">Opponent</th>
               </template>
             </template>
@@ -432,7 +436,7 @@ const careerStats = computed(() => {
     const yr = row.season_year as number
     if (!yr) continue
     if (!byYear.has(yr)) {
-      const entry: Record<string, any> = { season_year: yr }
+      const entry: Record<string, any> = { season_year: yr, team_abbrs: [] }
       STAT_KEYS.forEach(k => { entry[k] = 0 })
       STAT_MAX_KEYS.forEach(k => { entry[k] = 0 })
       byYear.set(yr, entry)
@@ -440,6 +444,9 @@ const careerStats = computed(() => {
     const agg = byYear.get(yr)!
     STAT_KEYS.forEach(k => { agg[k] = (agg[k] || 0) + (row[k] || 0) })
     STAT_MAX_KEYS.forEach(k => { agg[k] = Math.max(agg[k] || 0, row[k] || 0) })
+    if (row.player_team_abbr && !agg.team_abbrs.includes(row.player_team_abbr)) {
+      agg.team_abbrs.push(row.player_team_abbr)
+    }
   }
   return Array.from(byYear.values()).sort((a, b) => b.season_year - a.season_year)
 })

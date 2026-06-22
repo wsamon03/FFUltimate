@@ -167,12 +167,12 @@ async def get_player_stats(
                    t.full_name AS team_name, t.abbr AS player_team_abbr,
                    g.game_date, g.week, g.season_year,
                    ht.abbr AS home_team_abbr, att.abbr AS away_team_abbr,
-                   (g.home_team_id = p.team_id) AS is_home,
-                   CASE WHEN g.home_team_id = p.team_id THEN att.abbr ELSE ht.abbr END AS opponent_abbr
+                   (g.home_team_id = COALESCE(pgs.team_id, p.team_id)) AS is_home,
+                   CASE WHEN g.home_team_id = COALESCE(pgs.team_id, p.team_id) THEN att.abbr ELSE ht.abbr END AS opponent_abbr
             FROM player_game_stats pgs
             JOIN players p ON pgs.player_id = p.id
             JOIN games g ON pgs.game_id = g.id
-            JOIN teams t ON p.team_id = t.id
+            LEFT JOIN teams t ON COALESCE(pgs.team_id, p.team_id) = t.id
             JOIN teams ht ON g.home_team_id = ht.id
             JOIN teams att ON g.away_team_id = att.id
             WHERE pgs.player_id = $1::uuid

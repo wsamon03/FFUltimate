@@ -1,6 +1,6 @@
 <template>
   <tr>
-    <!-- Career mode: clickable season year -->
+    <!-- Career mode: clickable season year + teams -->
     <template v-if="mode === 'career'">
       <td>
         <button
@@ -9,11 +9,21 @@
           @click="$emit('season-click', row.season_year)"
         >{{ row.season_year ?? '—' }}</button>
       </td>
+      <td>
+        <template v-if="row.team_abbrs && row.team_abbrs.length">
+          <TeamHelmet v-for="abbr in row.team_abbrs" :key="abbr" :abbr="abbr" :size="20" />
+        </template>
+        <span v-else style="color: var(--color-text-secondary)">—</span>
+      </td>
     </template>
 
-    <!-- Season mode: week + opponent -->
+    <!-- Season mode: week + player team + opponent -->
     <template v-else-if="mode === 'season'">
       <td style="color: var(--color-text-secondary)">{{ row.week ?? '—' }}</td>
+      <td>
+        <TeamHelmet v-if="row.player_team_abbr" :abbr="row.player_team_abbr" :size="20" />
+        <span v-else style="color: var(--color-text-secondary)">—</span>
+      </td>
       <td>
         <div class="flex items-center gap-1">
           <span style="color: var(--color-text-secondary); font-size: 0.75rem">{{ row.is_home ? 'vs.' : '@' }}</span>
@@ -23,10 +33,14 @@
       </td>
     </template>
 
-    <!-- Range mode: season + week + opponent -->
+    <!-- Range mode: season + week + player team + opponent -->
     <template v-else-if="mode === 'range'">
       <td style="color: var(--color-text-secondary)">{{ row.season_year ?? '—' }}</td>
       <td style="color: var(--color-text-secondary)">{{ row.week ?? '—' }}</td>
+      <td>
+        <TeamHelmet v-if="row.player_team_abbr" :abbr="row.player_team_abbr" :size="20" />
+        <span v-else style="color: var(--color-text-secondary)">—</span>
+      </td>
       <td>
         <div class="flex items-center gap-1">
           <span style="color: var(--color-text-secondary); font-size: 0.75rem">{{ row.is_home ? 'vs.' : '@' }}</span>
@@ -103,6 +117,8 @@
 </template>
 
 <script setup lang="ts">
+import TeamHelmet from '@/components/common/TeamHelmet.vue'
+
 defineProps<{
   row: any
   statType?: string
