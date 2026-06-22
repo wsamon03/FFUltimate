@@ -112,25 +112,45 @@ class PgDBWriter:
                 json.dumps(stats.get("metadata", {})) if stats.get("metadata") else None
             )
 
-    async def upsert_player_game_stats(self, player_id: uuid.UUID, game_id: uuid.UUID, stats: dict) -> None:
-        """Upsert player game stats via stored procedure."""
+    async def upsert_player_game_stats(self, player_id: uuid.UUID, game_id: uuid.UUID, team_id: uuid.UUID, stats: dict) -> None:
+        """Upsert player game stats via stored procedure (54 params)."""
         async with self.pool.acquire() as conn:
             await conn.execute(
-                "CALL usp_upsert_player_game_stats($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41)",
+                "CALL usp_upsert_player_game_stats("
+                "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,"
+                "$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,"
+                "$41,$42,$43,$44,$45,$46,$47,$48,$49,$50,$51,$52,$53,$54)",
                 player_id, game_id,
+                # Passing
                 stats.get("pass_comp"), stats.get("pass_att"), stats.get("pass_yds"),
                 stats.get("pass_td"), stats.get("pass_int"), stats.get("pass_sacked"),
+                stats.get("pass_long"), stats.get("pass_qbr"), stats.get("pass_rating"),
+                # Rushing
                 stats.get("rush_att"), stats.get("rush_yds"), stats.get("rush_td"),
+                stats.get("rush_long"),
+                # Receiving
                 stats.get("rec_receptions"), stats.get("rec_targets"), stats.get("rec_yds"),
-                stats.get("rec_td"),
+                stats.get("rec_td"), stats.get("rec_long"),
+                # Fumbles
+                stats.get("fum_total"), stats.get("fum_lost"), stats.get("fum_rec"),
+                # Defense
                 stats.get("def_solo"), stats.get("def_ast"), stats.get("def_sacks"),
                 stats.get("def_tfl"), stats.get("def_pd"), stats.get("def_qb_hits"),
-                stats.get("def_td"), stats.get("def_int"),
+                stats.get("def_td"), stats.get("def_int"), stats.get("def_int_yds"),
+                # Kick returns
                 stats.get("ret_kick_no"), stats.get("ret_kick_yds"), stats.get("ret_kick_td"),
+                stats.get("ret_kick_long"),
+                # Punt returns
                 stats.get("ret_punt_no"), stats.get("ret_punt_yds"), stats.get("ret_punt_td"),
-                stats.get("k_fg_make"), stats.get("k_fg_att"),
+                stats.get("ret_punt_long"),
+                # Kicking
+                stats.get("k_fg_make"), stats.get("k_fg_att"), stats.get("k_fg_long"),
                 stats.get("k_xp_make"), stats.get("k_xp_att"),
+                # Punting
                 stats.get("p_no"), stats.get("p_yds"), stats.get("p_in20"),
                 stats.get("p_tb"), stats.get("p_fc"), stats.get("p_blk"), stats.get("p_long"),
+                # Team (game-time)
+                team_id,
+                # Metadata
                 json.dumps(stats.get("metadata", {})) if stats.get("metadata") else None
             )

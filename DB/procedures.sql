@@ -335,13 +335,14 @@ CREATE OR REPLACE PROCEDURE usp_upsert_player_game_stats(
     p_p_fc           INT,
     p_p_blk          INT,
     p_p_long         INT,
+    p_team_id        UUID,
     p_metadata       JSONB
 )
 LANGUAGE plpgsql
 AS $$
 BEGIN
     INSERT INTO player_game_stats (
-        player_id, game_id,
+        player_id, game_id, team_id,
         pass_comp, pass_att, pass_yds, pass_td, pass_int, pass_sacked,
         pass_long, pass_qbr, pass_rating,
         rush_att, rush_yds, rush_td, rush_long,
@@ -355,7 +356,7 @@ BEGIN
         p_no, p_yds, p_in20, p_tb, p_fc, p_blk, p_long,
         metadata
     ) VALUES (
-        p_player_id, p_game_id,
+        p_player_id, p_game_id, p_team_id,
         p_pass_comp, p_pass_att, p_pass_yds, p_pass_td, p_pass_int, p_pass_sacked,
         p_pass_long, p_pass_qbr, p_pass_rating,
         p_rush_att, p_rush_yds, p_rush_td, p_rush_long,
@@ -370,6 +371,7 @@ BEGIN
         p_metadata
     )
     ON CONFLICT (player_id, game_id) DO UPDATE SET
+        team_id        = COALESCE(EXCLUDED.team_id, player_game_stats.team_id),
         pass_comp      = COALESCE(EXCLUDED.pass_comp, player_game_stats.pass_comp),
         pass_att       = COALESCE(EXCLUDED.pass_att, player_game_stats.pass_att),
         pass_yds       = COALESCE(EXCLUDED.pass_yds, player_game_stats.pass_yds),

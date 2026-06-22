@@ -116,7 +116,7 @@ async def get_leaderboard(
                t.abbr AS team_nm
         FROM player_game_stats pgs
         JOIN players p ON pgs.player_id = p.id
-        JOIN teams t ON t.id = p.team_id
+        LEFT JOIN teams t ON t.id = COALESCE(pgs.team_id, p.team_id)
         WHERE pgs.game_id = $1
     """
 

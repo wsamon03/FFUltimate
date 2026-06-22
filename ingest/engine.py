@@ -81,15 +81,15 @@ class IngestionEngine:
                 for player in parsed_game.home_players + parsed_game.away_players:
                     if not player.espn_id or not player.display_name:
                         continue
+                    team_id = home_id if player.team_abbr == parsed_game.home_team.abbr else away_id
                     player_id = await self.db_writer.upsert_player(
-                        player.espn_id, player.display_name, player.position_code,
-                        home_id if player.team_abbr == parsed_game.home_team.abbr else away_id,
+                        player.espn_id, player.display_name, player.position_code, team_id,
                     )
                     player_stats = self.transformer.transform_player_stats(player)
                     # Only insert if player has any stats
                     non_null = {k: v for k, v in player_stats.items() if k != "metadata" and v is not None}
                     if non_null:
-                        await self.db_writer.upsert_player_game_stats(player_id, game_id, player_stats)
+                        await self.db_writer.upsert_player_game_stats(player_id, game_id, team_id, player_stats)
         finally:
             await self.pool.release(conn)
 
