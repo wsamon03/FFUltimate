@@ -224,7 +224,7 @@
           </template>
         </tr>
       </template>
-      <tr v-for="p in sortedPlayers" :key="p.player_id">
+      <tr v-for="p in pagedPlayers" :key="p.player_id">
         <td class="fav-cell">
           <FavoriteStar
             :is-favorited="favorites.has(p.player_id)"
@@ -305,6 +305,14 @@
         </template>
       </tr>
     </AppTable>
+
+    <AppPagination
+      :total="sortedPlayers.length"
+      :page="currentPage"
+      :per-page="perPage"
+      @update:page="currentPage = $event"
+      @update:per-page="perPage = $event; currentPage = 1"
+    />
   </div>
 </template>
 
@@ -319,6 +327,7 @@ import TeamHelmet from '@/components/common/TeamHelmet.vue'
 import AppSpinner from '@/components/ui/AppSpinner.vue'
 import AppTable from '@/components/ui/AppTable.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
+import AppPagination from '@/components/ui/AppPagination.vue'
 
 const statTypes = [
   { value: 'offense', label: 'Offense' },
@@ -337,6 +346,8 @@ const favorites = ref<Set<string>>(new Set())
 const togglingFav = ref<string | null>(null)
 const sortColumn = ref<string | null>(null)
 const sortDir = ref<'asc' | 'desc'>('desc')
+const currentPage = ref(1)
+const perPage = ref(10)
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -379,6 +390,11 @@ const sortedPlayers = computed(() => {
   return list // Offense: API already returns sorted by total yards desc
 })
 
+const pagedPlayers = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value
+  return sortedPlayers.value.slice(start, start + perPage.value)
+})
+
 function setSortColumn(col: string) {
   if (sortColumn.value === col) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
@@ -415,6 +431,11 @@ async function loadFavorites() {
 watch(query, () => {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(loadStats, 300)
+  currentPage.value = 1
+})
+
+watch([position, year, statType, sortColumn, sortDir], () => {
+  currentPage.value = 1
 })
 
 watch([position, year], loadStats)
