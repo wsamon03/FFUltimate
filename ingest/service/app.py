@@ -48,11 +48,10 @@ async def lifespan(application):
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from ingest.service.ingestion_router import router as ingestion_router
-from ingest.service.retrieval_router import router as retrieval_router
 
 app = FastAPI(
     title="NFL Data Ingestion API",
-    description="API for ingesting and retrieving NFL game data from sports APIs",
+    description="API for ingesting NFL game data from sports APIs",
     version="1.1.0",
     lifespan=lifespan
 )
@@ -65,7 +64,6 @@ app.add_middleware(
 )
 
 app.include_router(ingestion_router)
-app.include_router(retrieval_router)
 @app.delete("/api/delete/season", response_model=dict)
 async def delete_season(year: int = Query(...)):
     """Delete all data for a given season."""
