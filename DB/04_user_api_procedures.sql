@@ -181,7 +181,7 @@ $$ LANGUAGE plpgsql;
 -- READ FUNCTIONS
 -- ---------------------------------------------------------------------------
 
--- All leagues a user participates in (as an owner of any team).
+-- All leagues a user participates in (as creator or as an owner of any team).
 CREATE OR REPLACE FUNCTION user_api.fn_get_user_leagues(p_user_id UUID)
 RETURNS TABLE (
     league_id   UUID,
@@ -199,11 +199,12 @@ BEGIN
         l.created_at,
         COUNT(DISTINCT lt.id) AS team_count
     FROM user_api.leagues l
-    JOIN user_api.league_teams lt ON lt.league_id = l.id
-    JOIN user_api.league_team_owners lto ON lto.league_team_id = lt.id
-    WHERE lto.user_id = p_user_id
-      AND lto.is_active = TRUE
-    GROUP BY l.id, l.name, l.created_by, l.created_at;
+    LEFT JOIN user_api.league_teams lt ON lt.league_id = l.id
+    LEFT JOIN user_api.league_team_owners lto ON lto.league_team_id = lt.id AND lto.is_active = TRUE
+    WHERE l.created_by = p_user_id
+       OR lto.user_id = p_user_id
+    GROUP BY l.id, l.name, l.created_by, l.created_at
+    ORDER BY l.created_at DESC;
 END;
 $$ LANGUAGE plpgsql;
 
