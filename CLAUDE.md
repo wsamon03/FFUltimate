@@ -1,16 +1,16 @@
-
-### User API â€” Service Architecture
+﻿
+### User API Ã¢â‚¬â€ Service Architecture
 
 *   **Dual-Service Pattern**: The system uses two separate services:
-    *   **user_api (port 8001)** â€” OAuth/JWT auth, roster/favorites
-    *   **ingest/api (port 8002)** â€” ESPN data ETL, game stats retrieval
+    *   **user_api (port 8001)** Ã¢â‚¬â€ OAuth/JWT auth, roster/favorites
+    *   **ingest/api (port 8002)** Ã¢â‚¬â€ ESPN data ETL, game stats retrieval
 *   **Why separate**: User management requires request-heavy auth handling; different security boundaries.
 *   **Service boundary**: Both services share the same PostgreSQL database but serve different purposes.
 
-### Cross-Dependency Pattern (user_api â†’ public)
+### Cross-Dependency Pattern (user_api Ã¢â€ â€™ public)
 
 *   **Constraint**: Tables in user_api schema reference public.players/public.teams.
-*   **Impact**: Tight coupling â€” if public.players/teams schema changes, user_api breaks.
+*   **Impact**: Tight coupling Ã¢â‚¬â€ if public.players/teams schema changes, user_api breaks.
 *   **Tables**: roster_players, weekly_lineups, favorites reference public.players/public.teams.
 *   **Rationale**: Keeps fantasy roster data separate from ESPN data layers.
 
@@ -30,7 +30,7 @@
             await conn.execute("INSERT INTO user_api.weekly_lineups ...", team_id, slot.player_id, season, week, slot.slot_position)
 *   **Why**: Matches fantasy manager mental model.
 
-### User API â€” Stored Procedure Pattern
+### User API Ã¢â‚¬â€ Stored Procedure Pattern
 
 *   **usp_add_league_team_owner**: Uses ON CONFLICT to handle multi-owner teams.
 *   **usp_create_league_team**: Auto-assigns creator as commissioner.
@@ -60,9 +60,9 @@ When querying the NFL shortcut API endpoint (`/apis/site/v2/sports/football/nfl/
 *   **Zero-Row Detection**: `DELETE` commands **always return HTTP 200** even when zero rows are affected. Always verify with `SELECT COUNT(*)` before `DELETE`.
     *   **Pattern**: `SELECT COUNT(*) FROM table WHERE condition` BEFORE `DELETE FROM table WHERE condition`
     *   **Response Contract**:
-        *   HTTP 200 + `status: "success"` â†’ Data existed and was deleted
-        *   HTTP 200 + `status: "warning"` â†’ No data found for deletion
-        *   HTTP 500 + `status: "error"` â†’ Operation failed
+        *   HTTP 200 + `status: "success"` Ã¢â€ â€™ Data existed and was deleted
+        *   HTTP 200 + `status: "warning"` Ã¢â€ â€™ No data found for deletion
+        *   HTTP 500 + `status: "error"` Ã¢â€ â€™ Operation failed
 *   **Never Delete Unless Matched**: Always run `COUNT(*)` check before deletion to avoid deleting records that don't exist
 
 ### FastAPI Query Parameter Validation
@@ -140,27 +140,27 @@ async def delete_week(year: int = Query(...), week: int = Query(...)):
 
 ### Game Scores Ingestion Pipeline Chain
 
-*   **Flow**: `ESPN API â†’ parsers.py (extract score) â†’ models.py (NormalizedGame.home_score/away_score) â†’ engine.py (pass score param) â†’ db_writer.py (upsert_game $8/$9) â†’ stored procedure
+*   **Flow**: `ESPN API Ã¢â€ â€™ parsers.py (extract score) Ã¢â€ â€™ models.py (NormalizedGame.home_score/away_score) Ã¢â€ â€™ engine.py (pass score param) Ã¢â€ â€™ db_writer.py (upsert_game $8/$9) Ã¢â€ â€™ stored procedure
 
 *
-    *   `ingest/espn/parsers.py` â€” extracts `home_team.score` and `away_team.score` and assigns to `home_score`/`away_score` in `NormalizedGame`
-    *   `ingest/espn/models.py` â€” `home_score: int | None` and `away_score: int | None` added to `NormalizedGame`
-    *   `ingest/engine.py` â€” passes `home_score` and `away_score` as positional args `$8` and `$9` to `db_writer.upsert_game()`
-    *   `ingest/db_writer.py` â€” `upsert_game()` accepts `home_score`/`away_score` and calls `usp_upsert_game` with `CALL usp_upsert_game($1..$9)`
-    *   `DB/procedures.sql` â€” `usp_upsert_game` signature
+    *   `ingest/espn/parsers.py` Ã¢â‚¬â€ extracts `home_team.score` and `away_team.score` and assigns to `home_score`/`away_score` in `NormalizedGame`
+    *   `ingest/espn/models.py` Ã¢â‚¬â€ `home_score: int | None` and `away_score: int | None` added to `NormalizedGame`
+    *   `ingest/engine.py` Ã¢â‚¬â€ passes `home_score` and `away_score` as positional args `$8` and `$9` to `db_writer.upsert_game()`
+    *   `ingest/db_writer.py` Ã¢â‚¬â€ `upsert_game()` accepts `home_score`/`away_score` and calls `usp_upsert_game` with `CALL usp_upsert_game($1..$9)`
+    *   `DB/procedures.sql` Ã¢â‚¬â€ `usp_upsert_game` signature
 
 *   **Important**: The frontend retrieves `home_score` and `away_score` directly from `games` table columns with no joins to fact tables. The column order in the `games` table schema is: `season_year, week, home_code, away_code, time_tbd, status_code, game_date, home_score, away_score, id, home_team_id, away_team_id, espn_id`.
 
 
-### User API â€” Service Architecture
+### User API Ã¢â‚¬â€ Service Architecture
 
 *   **Dual-Service Pattern**: The system uses two separate services:
-    *   **user_api (port 8001)** â€” OAuth/JWT auth, league/team management, roster/favorites
-    *   **ingest/api (port 8002)** â€” ESPN data ETL, game stats retrieval, ingestion pipeline
+    *   **user_api (port 8001)** Ã¢â‚¬â€ OAuth/JWT auth, league/team management, roster/favorites
+    *   **ingest/api (port 8002)** Ã¢â‚¬â€ ESPN data ETL, game stats retrieval, ingestion pipeline
 *   **Why separate**: User management requires request-heavy auth handling; data ingestion is batch-heavy. Also different security boundaries (OAuth tokens vs. internal API).
 *   **Service boundary**: Both services share the same PostgreSQL database but serve different purposes.
 
-### Cross-Dependency Pattern (user_api â†’ public)
+### Cross-Dependency Pattern (user_api Ã¢â€ â€™ public)
 
 *   **Constraint**: Tables in user_api schema reference public.players/public.teams.
 
@@ -225,7 +225,7 @@ async def delete_week(year: int = Query(...), week: int = Query(...)):
 
 *   **Placement**: All imports must be at module level
 *   **Exception Block Imports**: `import re` inside exception handlers is a bug that causes 422 validation errors
-*   **Order**: Standard imports (os, logging, asyncpg) â†’ FastAPI imports (FastAPI, Query) â†’ Lifespan decorators
+*   **Order**: Standard imports (os, logging, asyncpg) Ã¢â€ â€™ FastAPI imports (FastAPI, Query) Ã¢â€ â€™ Lifespan decorators
 
 ## Project-Specific Data & Frontend Rules (2026-06-10 Session)
 
@@ -284,5 +284,65 @@ CREATE OR REPLACE FUNCTION fn_get_games_by_season(p_season INT)...
 
 **Rule**: Never rely on implicit column names from joins unless they are guaranteed to be unique across the entire query scope.
 
+## Project Schema & Storage Rules
 
-**Last Updated**: 2026-06-10 21:50:33 UTC
+### A. Favorites Use a Unified Kind-Based Table
+**Lesson**: The favorites feature consolidates both players and teams into a single `user_api.favorites` table rather than separate tables or arrays. It relies on a `kind` column (`'player' | 'team'`) to distinguish types, along with `target_name` and `extra` for cached display fields.
+**Project Rule**: When querying or writing favorites, always expect the flat unified structure. Frontend components must `.filter()` by `kind` before mapping to component-specific shapes (e.g., separating players from NFL teams). Never assume the API returns nested `{ players: [], teams: [] }`.
+
+### B. DB Migrations Are Split into Schema and Procedures
+**Lesson**: Database definitions are intentionally separated in `/DB/`: DDL goes in `03_user_api_schema.sql` (tables, constraints, indexes), while logic/procedures live in `04_user_api_procedures.sql`.
+**Project Rule**: When extending the database, keep schema definitions strictly in `03_*.sql` and move stored procedures/functions to `04_*.sql`. Do not mix DDL and procedural logic in the same migration file.
+
+## Backend & API Architecture Rules
+
+### C. Resource Endpoints Map 1:1 to Router Files
+**Lesson**: The backend follows a strict `<resource>_router.py` pattern (e.g., `players_router.py`, `auth_router.py`). Each router handles its own pool dependency injection (`Depends(get_pool)`) and exposes endpoints under `/api/...` namespaces.
+**Project Rule**: Always create or extend endpoints within the existing `<resource>_router.py` file rather than adding them to a central API wrapper. New routes should follow the established pool inheritance pattern (`pool: asyncpg.Pool = Depends(get_pool)`).
+
+### D. Procedure INSERT Logic Uses Conditional CASE for Exclusive Columns
+**Lesson**: Constraints like CHECK ((player_id IS NOT NULL AND team_id IS NULL) OR ...) mean stored procedures cannot blindly insert into both nullable columns. They must explicitly route values using `CASE WHEN kind = '...' THEN value ELSE NULL END`.
+**Project Rule**: When modifying `usp_add_favorite` or similar procedures, always validate that conditional columns respect the CHECK constraint using explicit CASE routing rather than assuming automatic NULLIF propagation works.
+
+## Ingestion Pipeline Patterns
+
+### E. Season Discovery Relies on Week-by-Week Iteration
+**Lesson**: The ingestion engine (`ingest/engine.py`) deliberately avoids bulk season discovery because external filters (like `type=2`) drop weeks/games silently. Instead, it uses constants like `WEEKS_REGULAR` and calls `process_week()` sequentially.
+**Project Rule**: Any new data fetch loop in the ingestion module must follow the week-by-week iteration pattern. Do not attempt single-batch historical discovery until you verify the external API's pagination/filter limits explicitly.
+
+### F. Diagnostic Endpoint for Data Completeness Monitoring
+**Lesson**: The `/api/stats/season-summary` endpoint was added specifically to monitor ingestion health by reporting per-week game counts vs player_stat row counts.
+**Project Rule**: When building new data pipelines, always include a lightweight diagnostic/status endpoint that reports entity counts by time period or status. Use it to verify completeness before trusting downstream UI displays.
+
+## Frontend Component Conventions
+
+### G. Dynamic PositionGroup Mapping Overrides Static Tables
+**Lesson**: Player stat tables cannot share a static column layout. The project defines a `positionGroup` computed property in `<PlayerDetailPage>` and `<PlayersPage>` that maps raw position codes (`DL`, `LB`, `CB`, `S`) into UI groups (`DEF`), routing all data to position-specific `<template v-if="positionGroup === '...'">` blocks.
+**Project Rule**: When adding new stat types or player positions, update the `positionGroup` computed mapping first, then define the corresponding columns inside the position-specific template block in both `PlayersPage.vue` and `PlayerDetailPage.vue`.
+
+### H. Stats API Keys Must Match Database Abbreviations Exactly
+**Lesson**: Frontend stats components (`LeaderboardTable.vue`, `PlayerStatRow.vue`) hardcode Vue template keys that exactly mirror PostgreSQL column abbreviations (e.g., `pass_yds`, `rec_receptions`, `def_solo`). There is no transformation layer between the API response key and the DOM key.
+**Project Rule**: When updating backend DB columns or adding new stats, immediately sync the corresponding Vue template key in all referencing components. Assume the API returns exactly what the DB column name dictatesâ€”no camelCase conversion or aliasing happens at runtime.
+
+## Auth & State Management Conventions
+
+### I. Auth Store Exports `bootPromise` for Router Guard Synchronization
+**Lesson**: The auth store initializes a module-level `\_bootResolve` function and exposes its linked `bootPromise`. This promise resolves in the `finally` block of `boot()`, ensuring it always fires regardless of success or failure refreshing from cookies.
+**Project Rule**: If you need to await async initialization across multiple stores, follow the `\_bootResolve` + `new Promise<void>` pattern. Never use untyped boolean flags to synchronize loading states between Pinia stores and Vue Router guards.
+
+### J. Helmet & Asset Directory Is Dedicated `/helmets/` Public Folder
+**Lesson**: All team helmet images for NFL pages are stored directly under `frontend/public/helmets/{abbr}.png` rather than managed as imported assets or a CDN array.
+**Project Rule**: When adding new teams or modifying helmet paths, reference them via the public route `<img src="/helmets/TEAM_ABBR.png">`. Do not import them into Vue setup blocks to avoid bundling overhead or relative path resolution issues during deployment.
+
+### K. Frontend Isolation: Only user_api, Never ingest API
+**Lesson**: The frontend **must** communicate exclusively with user_api (port 8001). The ingest API (port 8002) is for internal data ETL only. A critical violation occurred when stats endpoints were duplicated in ingest API with no auth gating.
+
+*Pattern*: 
+- Vite dev proxy routes all `/api/*` calls to `http://localhost:8001` (user_api)
+- All user-facing endpoints live in `user_api/routers/stats_router.py` with `@Depends(get_current_user)` auth gates
+- Ingest API's `retrieval_router.py` was removed; it duplicated user_api endpoints without auth
+- If frontend needs stats data, add it to user_api, not ingest/api
+
+**Project Rule**: Any feature requesting NFL stats must be implemented as a user_api endpoint with auth gating. Never add unauthenticated stats endpoints to the ingest service. Frontend always gets data through user_api gateway.
+
+**Last Updated**: 2026-06-23
