@@ -233,8 +233,8 @@
           />
         </td>
         <td class="helmet-cell">
-          <template v-if="p.team_abbrs && p.team_abbrs.length">
-            <TeamHelmet v-for="abbr in p.team_abbrs" :key="abbr" :abbr="abbr" :size="24" />
+          <template v-if="p.team_abbr">
+            <TeamHelmet :abbr="p.team_abbr" :size="24" />
           </template>
           <span v-else style="color: var(--color-text-secondary)">—</span>
         </td>
