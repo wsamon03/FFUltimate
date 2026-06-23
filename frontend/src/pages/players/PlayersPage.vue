@@ -233,9 +233,7 @@
           />
         </td>
         <td class="helmet-cell">
-          <template v-if="p.team_abbr">
-            <TeamHelmet :abbr="p.team_abbr" :size="24" />
-          </template>
+          <TeamHelmet v-if="p.team_abbr && p.team_abbr.trim()" :abbr="p.team_abbr" :size="24" />
           <span v-else style="color: var(--color-text-secondary)">—</span>
         </td>
         <td>

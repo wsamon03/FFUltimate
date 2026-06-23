@@ -157,45 +157,35 @@ async def get_leaderboard(game_id: str, category: str = "passing", pool: asyncpg
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid game_id format (expected UUID)")
 
+    BASE = (
+        "SELECT pgs.*, p.name as player_name, p.espn_id as player_espn_id, "
+        "t.abbr as team_nm "
+        "FROM player_game_stats pgs "
+        "JOIN players p ON pgs.player_id = p.id "
+        "JOIN teams t ON t.id = p.team_id "
+        "WHERE pgs.game_id = $1"
+    )
+
     if category == "passing":
-        query = (
-            "SELECT pgs.*, p.name as player_name, p.espn_id as player_espn_id, "
-            "t.abbr as team_nm "
-            "FROM player_game_stats pgs "
-            "JOIN players p ON pgs.player_id = p.id "
-            "JOIN teams t ON t.id = p.team_id "
-            "WHERE pgs.game_id = $1 AND pgs.pass_att > 0 "
-            "ORDER BY pgs.pass_yds DESC LIMIT 20"
-        )
-        params = [game_uuid]
+        query = BASE + " AND pgs.pass_att > 0 ORDER BY pgs.pass_yds DESC LIMIT 50"
     elif category == "rushing":
-        query = (
-            "SELECT pgs.*, p.name as player_name, p.espn_id as player_espn_id, "
-            "t.abbr as team_nm "
-            "FROM player_game_stats pgs "
-            "JOIN players p ON pgs.player_id = p.id "
-            "JOIN teams t ON t.id = p.team_id "
-            "WHERE pgs.game_id = $1 AND pgs.rush_att > 0 "
-            "ORDER BY pgs.rush_yds DESC LIMIT 20"
-        )
-        params = [game_uuid]
+        query = BASE + " AND pgs.rush_att > 0 ORDER BY pgs.rush_yds DESC LIMIT 50"
     elif category == "receiving":
-        query = (
-            "SELECT pgs.*, p.name as player_name, p.espn_id as player_espn_id, "
-            "t.abbr as team_nm "
-            "FROM player_game_stats pgs "
-            "JOIN players p ON pgs.player_id = p.id "
-            "JOIN teams t ON t.id = p.team_id "
-            "WHERE pgs.game_id = $1 AND pgs.rec_receptions > 0 "
-            "ORDER BY pgs.rec_yds DESC LIMIT 20"
-        )
-        params = [game_uuid]
+        query = BASE + " AND pgs.rec_receptions > 0 ORDER BY pgs.rec_yds DESC LIMIT 50"
+    elif category == "fumbles":
+        query = BASE + " AND (COALESCE(pgs.fum_total,0) + COALESCE(pgs.fum_lost,0) + COALESCE(pgs.fum_rec,0)) > 0 ORDER BY pgs.fum_total DESC LIMIT 50"
+    elif category == "defense":
+        query = BASE + " AND (COALESCE(pgs.def_solo,0) + COALESCE(pgs.def_ast,0) + COALESCE(pgs.def_sacks,0)) > 0 ORDER BY (COALESCE(pgs.def_solo,0) + COALESCE(pgs.def_ast,0)) DESC LIMIT 50"
+    elif category == "kicking":
+        query = BASE + " AND (COALESCE(pgs.k_fg_att,0) + COALESCE(pgs.p_no,0)) > 0 ORDER BY pgs.k_fg_make DESC LIMIT 50"
+    elif category == "returns":
+        query = BASE + " AND (COALESCE(pgs.ret_kick_no,0) + COALESCE(pgs.ret_punt_no,0)) > 0 ORDER BY (COALESCE(pgs.ret_kick_yds,0) + COALESCE(pgs.ret_punt_yds,0)) DESC LIMIT 50"
     else:
         raise HTTPException(status_code=400, detail=f"Unknown category: {category}")
         
     async with pool.acquire() as conn:
         try:
-            rows = await conn.fetch(query, *params)
+            rows = await conn.fetch(query, game_uuid)
         except Exception as e:
             print(f"[ERROR] get_leaderboard query failed for {game_uuid}: {e}")
             raise
@@ -228,31 +218,40 @@ async def get_player_season_stats(
             p.id::text AS player_id,
             p.name,
             COALESCE(p.position_code, '') AS position_code,
-            t.abbr AS team_abbr,
-            t.full_name AS team_name,
+            COALESCE(t.abbr, '') AS team_abbr,
+            COALESCE(t.full_name, '') AS team_name,
             COALESCE(SUM(pgs.pass_comp), 0)::int     AS pass_comp,
             COALESCE(SUM(pgs.pass_att), 0)::int      AS pass_att,
             COALESCE(SUM(pgs.pass_yds), 0)::int      AS pass_yds,
             COALESCE(SUM(pgs.pass_td), 0)::int       AS pass_td,
             COALESCE(SUM(pgs.pass_int), 0)::int      AS pass_int,
             COALESCE(SUM(pgs.pass_sacked), 0)::int   AS pass_sacked,
+            CAST(COALESCE(ROUND(AVG(pgs.pass_qbr), 1), 0) AS NUMERIC(5,1))    AS pass_qbr,
+            CAST(COALESCE(ROUND(AVG(pgs.pass_rating), 1), 0) AS NUMERIC(5,1)) AS pass_rating,
             COALESCE(SUM(pgs.rush_att), 0)::int      AS rush_att,
             COALESCE(SUM(pgs.rush_yds), 0)::int      AS rush_yds,
             COALESCE(SUM(pgs.rush_td), 0)::int       AS rush_td,
+            COALESCE(MAX(pgs.rush_long), 0)::int     AS rush_long,
             COALESCE(SUM(pgs.rec_receptions), 0)::int AS rec_receptions,
             COALESCE(SUM(pgs.rec_targets), 0)::int   AS rec_targets,
             COALESCE(SUM(pgs.rec_yds), 0)::int       AS rec_yds,
             COALESCE(SUM(pgs.rec_td), 0)::int        AS rec_td,
+            COALESCE(MAX(pgs.rec_long), 0)::int      AS rec_long,
+            COALESCE(SUM(pgs.fum_total), 0)::int     AS fum_total,
+            COALESCE(SUM(pgs.fum_lost), 0)::int      AS fum_lost,
+            COALESCE(SUM(pgs.fum_rec), 0)::int       AS fum_rec,
             COALESCE(SUM(pgs.def_solo), 0)::int      AS def_solo,
             COALESCE(SUM(pgs.def_ast), 0)::int       AS def_ast,
             CAST(COALESCE(SUM(pgs.def_sacks), 0) AS NUMERIC(5,1)) AS def_sacks,
             COALESCE(SUM(pgs.def_tfl), 0)::int       AS def_tfl,
             COALESCE(SUM(pgs.def_pd), 0)::int        AS def_pd,
             COALESCE(SUM(pgs.def_qb_hits), 0)::int   AS def_qb_hits,
-            COALESCE(SUM(pgs.def_td), 0)::int        AS def_td,
             COALESCE(SUM(pgs.def_int), 0)::int       AS def_int,
+            COALESCE(SUM(pgs.def_int_yds), 0)::int   AS def_int_yds,
+            COALESCE(SUM(pgs.def_td), 0)::int        AS def_td,
             COALESCE(SUM(pgs.k_fg_make), 0)::int     AS k_fg_make,
             COALESCE(SUM(pgs.k_fg_att), 0)::int      AS k_fg_att,
+            COALESCE(MAX(pgs.k_fg_long), 0)::int     AS k_fg_long,
             COALESCE(SUM(pgs.k_xp_make), 0)::int     AS k_xp_make,
             COALESCE(SUM(pgs.k_xp_att), 0)::int      AS k_xp_att,
             COALESCE(SUM(pgs.p_no), 0)::int          AS p_no,
@@ -264,9 +263,11 @@ async def get_player_season_stats(
             COALESCE(SUM(pgs.ret_kick_no), 0)::int   AS ret_kick_no,
             COALESCE(SUM(pgs.ret_kick_yds), 0)::int  AS ret_kick_yds,
             COALESCE(SUM(pgs.ret_kick_td), 0)::int   AS ret_kick_td,
+            COALESCE(MAX(pgs.ret_kick_long), 0)::int  AS ret_kick_long,
             COALESCE(SUM(pgs.ret_punt_no), 0)::int   AS ret_punt_no,
             COALESCE(SUM(pgs.ret_punt_yds), 0)::int  AS ret_punt_yds,
-            COALESCE(SUM(pgs.ret_punt_td), 0)::int   AS ret_punt_td
+            COALESCE(SUM(pgs.ret_punt_td), 0)::int   AS ret_punt_td,
+            COALESCE(MAX(pgs.ret_punt_long), 0)::int  AS ret_punt_long
         FROM player_game_stats pgs
         JOIN players p ON pgs.player_id = p.id
         LEFT JOIN teams t ON p.team_id = t.id
@@ -288,6 +289,8 @@ async def get_player_season_stats(
         for r in rows:
             row = dict(r)
             row['def_sacks'] = float(row['def_sacks']) if row['def_sacks'] else 0.0
+            row['pass_qbr'] = float(row['pass_qbr']) if row['pass_qbr'] else 0.0
+            row['pass_rating'] = float(row['pass_rating']) if row['pass_rating'] else 0.0
             result.append(row)
         return result
 
