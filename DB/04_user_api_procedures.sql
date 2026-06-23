@@ -184,8 +184,8 @@ $$ LANGUAGE plpgsql;
 -- All leagues a user participates in (as creator or as an owner of any team).
 CREATE OR REPLACE FUNCTION user_api.fn_get_user_leagues(p_user_id UUID)
 RETURNS TABLE (
-    league_id   UUID,
-    league_name VARCHAR,
+    id          UUID,
+    name        VARCHAR,
     created_by  UUID,
     created_at  TIMESTAMP,
     team_count  BIGINT
