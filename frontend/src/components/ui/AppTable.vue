@@ -17,6 +17,10 @@
 
 <style>
 /* Applied globally so slotted elements pick these up */
+table {
+  table-layout: fixed;
+}
+
 table th {
   padding: 0.75rem 1rem;
   text-align: left;
@@ -34,6 +38,7 @@ table td {
   color: var(--color-text-primary);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
+  overflow: hidden;
 }
 
 table tbody tr:last-child td {

@@ -50,20 +50,20 @@
       <template #head>
         <!-- Group header spanning row -->
         <tr v-if="statType === 'offense'">
-          <th colspan="5" class="col-group-anchor"></th>
+          <th colspan="4" class="col-group-anchor"></th>
           <th colspan="7" class="col-group-label col-group-pass">PASSING</th>
           <th colspan="4" class="col-group-label col-group-rush">RUSHING</th>
           <th colspan="5" class="col-group-label col-group-rec">RECEIVING</th>
           <th colspan="2" class="col-group-label col-group-fum">FUMBLES</th>
         </tr>
         <tr v-else-if="statType === 'defense'">
-          <th colspan="5" class="col-group-anchor"></th>
+          <th colspan="4" class="col-group-anchor"></th>
           <th colspan="4" class="col-group-label col-group-tkl">TACKLES</th>
           <th colspan="2" class="col-group-label col-group-cov">PASS RUSH</th>
           <th colspan="3" class="col-group-label col-group-to">COVERAGE</th>
         </tr>
         <tr v-else>
-          <th colspan="5" class="col-group-anchor"></th>
+          <th colspan="4" class="col-group-anchor"></th>
           <th colspan="5" class="col-group-label col-group-kick">KICKING</th>
           <th colspan="6" class="col-group-label col-group-punt">PUNTING</th>
           <th colspan="8" class="col-group-label col-group-ret">RETURNS</th>
@@ -483,7 +483,9 @@ onMounted(async () => {
   flex-shrink: 0;
   text-align: center;
   padding: 8px 6px;
-  width: 36px;
+  width: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
 }
 .sortable-header {
   cursor: pointer;
