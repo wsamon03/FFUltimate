@@ -24,7 +24,7 @@
       <!-- Tabs -->
       <div class="flex gap-1 border-b" style="border-color: var(--color-border)">
         <button
-          v-for="tab in ['teams', 'standings', 'settings']"
+          v-for="tab in ['teams', 'standings', 'settings', 'invite']"
           :key="tab"
           class="px-4 py-2 text-sm font-medium capitalize border-b-2 -mb-px transition-colors"
           :style="activeTab === tab
@@ -44,12 +44,16 @@
             <RouterLink :to="`/leagues/${leagueId}/teams/${team.id}`">
               <AppCard hoverable>
                 <div class="flex items-center gap-3">
-                  <div
-                    class="w-10 h-10 rounded-full flex-shrink-0 border"
-                    :style="team.primary_color
-                      ? `background: ${team.primary_color}; border-color: ${team.primary_color}`
-                      : 'border-color: var(--color-border); background: var(--color-bg-secondary)'"
-                  ></div>
+                  <TeamHelmet
+                    :primary-color="team.primary_color"
+                    :secondary-color="team.secondary_color_1"
+                    :tertiary-color="team.secondary_color_2"
+                    :logo-url="team.logo_url"
+                    :abbreviation="team.abbreviation"
+                    :size="48"
+                    :transparent="true"
+                    class="flex-shrink-0"
+                  />
                   <div class="flex-1 min-w-0">
                     <div class="font-semibold" style="color: var(--color-text-primary)">
                       {{ team.name }}
@@ -336,6 +340,119 @@
           </AppCard>
         </template>
       </div>
+
+      <!-- Invite tab -->
+      <div v-else-if="activeTab === 'invite'" class="space-y-6">
+
+        <!-- Code / URL / QR row -->
+        <AppCard>
+          <div class="flex items-start gap-6">
+
+            <!-- Left: invite code + join URL stacked -->
+            <div class="flex-1 min-w-0">
+              <div class="space-y-4">
+                <!-- Invite code -->
+                <div>
+                  <p class="text-xs font-medium uppercase tracking-wide mb-1" style="color: var(--color-text-secondary)">Invite Code</p>
+                  <div class="flex items-center gap-1.5">
+                    <code class="text-2xl font-mono font-bold tracking-widest" style="color: var(--color-text-primary)">{{ league?.invite_code }}</code>
+                    <AppButton size="sm" variant="ghost" @click="copyCode" aria-label="Copy invite code">
+                      <Check v-if="codeCopied" :size="15" />
+                      <Copy v-else :size="15" />
+                    </AppButton>
+                  </div>
+                </div>
+
+                <hr style="border-color: var(--color-border)" />
+
+                <!-- Join URL -->
+                <div class="min-w-0">
+                  <p class="text-xs font-medium uppercase tracking-wide mb-1" style="color: var(--color-text-secondary)">Join Link</p>
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    <span class="text-sm" style="color: var(--color-text-primary)">{{ joinUrl }}</span>
+                    <AppButton size="sm" variant="ghost" @click="copyUrl" aria-label="Copy join link" class="flex-shrink-0">
+                      <Check v-if="urlCopied" :size="15" />
+                      <Copy v-else :size="15" />
+                    </AppButton>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Regenerate (commissioner only) -->
+              <div v-if="isCommissioner" class="flex items-start gap-3 mt-4 pt-4 border-t" style="border-color: var(--color-border)">
+                <AppButton size="sm" variant="ghost" :loading="regenerating" @click="doRegenerateCode" class="flex-shrink-0">Regenerate</AppButton>
+                <p class="text-xs mt-1.5" style="color: var(--color-text-secondary)">Generates a new code — anyone with the old link will no longer be able to join.</p>
+              </div>
+            </div>
+
+            <!-- Right: QR code -->
+            <div class="flex-shrink-0 flex items-center self-center">
+              <canvas ref="qrCanvas" class="rounded-lg" />
+            </div>
+
+          </div>
+        </AppCard>
+
+        <!-- Email invites -->
+        <AppCard v-if="canSendInvites">
+          <h3 class="font-semibold mb-4" style="color: var(--color-text-primary)">Email Invites</h3>
+          <form @submit.prevent="sendEmails" class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium mb-1" style="color: var(--color-text-secondary)">Recipients (one email per line)</label>
+              <textarea
+                v-model="emailRecipients"
+                rows="3"
+                placeholder="jane@example.com&#10;bob@example.com"
+                class="w-full text-sm rounded-lg px-3 py-2 border resize-y focus:outline-none focus:ring-2"
+                style="background: var(--color-bg); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-primary)"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" style="color: var(--color-text-secondary)">Message (editable)</label>
+              <textarea
+                v-model="emailMessage"
+                rows="6"
+                class="w-full text-sm rounded-lg px-3 py-2 border resize-y focus:outline-none focus:ring-2"
+                style="background: var(--color-bg); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-primary)"
+              />
+            </div>
+            <p v-if="emailStatus" :class="emailStatus.ok ? 'text-green-600' : 'text-red-600'" class="text-sm">{{ emailStatus.msg }}</p>
+            <AppButton type="submit" :loading="sendingEmails">Send Email Invites</AppButton>
+          </form>
+        </AppCard>
+
+        <!-- SMS invites -->
+        <AppCard v-if="canSendInvites">
+          <h3 class="font-semibold mb-4" style="color: var(--color-text-primary)">Text Message Invites</h3>
+          <form @submit.prevent="sendSms" class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium mb-1" style="color: var(--color-text-secondary)">Phone Numbers (one per line, e.g. +15551234567)</label>
+              <textarea
+                v-model="smsRecipients"
+                rows="3"
+                placeholder="+15551234567&#10;+14155552671"
+                class="w-full text-sm rounded-lg px-3 py-2 border resize-y focus:outline-none focus:ring-2"
+                style="background: var(--color-bg); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-primary)"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium mb-1" style="color: var(--color-text-secondary)">Message (editable)</label>
+              <textarea
+                v-model="smsMessage"
+                rows="3"
+                class="w-full text-sm rounded-lg px-3 py-2 border resize-y focus:outline-none focus:ring-2"
+                style="background: var(--color-bg); border-color: var(--color-border); color: var(--color-text-primary); --tw-ring-color: var(--color-primary)"
+              />
+            </div>
+            <p v-if="smsStatus" :class="smsStatus.ok ? 'text-green-600' : 'text-red-600'" class="text-sm">{{ smsStatus.msg }}</p>
+            <AppButton type="submit" :loading="sendingSms">Send Text Invites</AppButton>
+          </form>
+        </AppCard>
+
+        <p v-if="!canSendInvites" class="text-sm" style="color: var(--color-text-secondary)">
+          Only the commissioner can send invites for this league. Share the code or URL above instead.
+        </p>
+      </div>
     </template>
 
     <!-- Add Team modal -->
@@ -384,33 +501,98 @@
             />
           </div>
         </div>
+        <!-- Logo -->
         <div>
-          <label class="block text-sm font-medium mb-1" style="color: var(--color-text-primary)">Logo URL</label>
-          <input
-            v-model="brandingForm.logo_url"
-            placeholder="https://..."
-            class="w-full text-sm rounded-lg px-3 py-2 border focus:outline-none"
-            style="background: var(--color-bg); border-color: var(--color-border); color: var(--color-text-primary)"
-          />
+          <label class="block text-sm font-medium mb-2" style="color: var(--color-text-primary)">Logo</label>
+          <!-- Mode tabs -->
+          <div class="flex gap-1 mb-3 p-1 rounded-lg" style="background: var(--color-bg-secondary)">
+            <button
+              v-for="mode in (['url', 'upload', 'choose'] as const)"
+              :key="mode"
+              type="button"
+              class="flex-1 px-2 py-1 text-xs rounded font-medium transition-colors"
+              :style="logoMode === mode
+                ? 'background: var(--color-primary); color: white'
+                : 'background: transparent; color: var(--color-text-secondary)'"
+              @click="logoMode = mode"
+            >{{ mode === 'url' ? 'URL' : mode === 'upload' ? 'Upload' : 'Presets' }}</button>
+          </div>
+
+          <!-- URL mode -->
+          <div v-if="logoMode === 'url'">
+            <input
+              v-model="brandingForm.logo_url"
+              placeholder="https://example.com/logo.png"
+              class="w-full text-sm rounded-lg px-3 py-2 border focus:outline-none"
+              style="background: var(--color-bg); border-color: var(--color-border); color: var(--color-text-primary)"
+            />
+            <div v-if="brandingForm.logo_url" class="mt-2 flex items-center gap-2">
+              <img :src="brandingForm.logo_url" class="w-8 h-8 rounded object-cover" @error="(e: Event) => ((e.target as HTMLImageElement).style.display = 'none')" />
+              <span class="text-xs" style="color: var(--color-text-secondary)">Preview</span>
+            </div>
+          </div>
+
+          <!-- Upload mode -->
+          <div v-else-if="logoMode === 'upload'" class="space-y-2">
+            <label
+              class="flex flex-col items-center justify-center w-full h-24 rounded-lg cursor-pointer transition-colors border-2 border-dashed hover:opacity-70"
+              style="border-color: var(--color-border)"
+            >
+              <span class="text-sm" style="color: var(--color-text-secondary)">Click to upload an image</span>
+              <span class="text-xs mt-0.5" style="color: var(--color-text-secondary)">PNG, JPG, GIF — max 2 MB</span>
+              <input type="file" accept="image/*" class="hidden" @change="onLogoFileChange" />
+            </label>
+            <div v-if="brandingForm.logo_url?.startsWith('data:')" class="flex items-center gap-3 p-2 rounded-lg" style="background: var(--color-bg-secondary)">
+              <img :src="brandingForm.logo_url" class="w-10 h-10 rounded object-cover flex-shrink-0" />
+              <span class="text-xs" style="color: var(--color-text-secondary)">Uploaded image preview</span>
+            </div>
+          </div>
+
+          <!-- Presets mode -->
+          <div v-else-if="logoMode === 'choose'">
+            <div class="grid grid-cols-5 gap-2">
+              <button
+                v-for="preset in PRESET_LOGOS"
+                :key="preset.id"
+                type="button"
+                class="aspect-square rounded-lg border-2 text-2xl flex items-center justify-center transition-all hover:scale-110"
+                :style="brandingForm.logo_url === emojiLogoUri(preset.emoji)
+                  ? 'border-color: var(--color-primary)'
+                  : 'border-color: var(--color-border); background: var(--color-bg-secondary)'"
+                :title="preset.label"
+                @click="brandingForm.logo_url = emojiLogoUri(preset.emoji)"
+              >{{ preset.emoji }}</button>
+            </div>
+          </div>
         </div>
-        <div class="grid grid-cols-3 gap-4">
-          <div v-for="field in colorFields" :key="field.key">
-            <label class="block text-sm font-medium mb-1" style="color: var(--color-text-primary)">{{ field.label }}</label>
-            <div class="flex items-center gap-2">
+
+        <!-- Team Colors -->
+        <div class="grid grid-cols-3 gap-3">
+          <div v-for="field in colorFields" :key="field.key" class="flex flex-col gap-1.5">
+            <label class="block text-xs font-medium uppercase tracking-wide" style="color: var(--color-text-secondary)">{{ field.label }}</label>
+            <!-- Large color swatch — clicking opens native color picker -->
+            <label class="relative block cursor-pointer group">
+              <div
+                class="w-full h-12 rounded-lg border-2 transition-all group-hover:brightness-90 flex items-end justify-end pb-1 pr-1.5"
+                :style="`background: ${brandingForm[field.key] || '#6b7280'}; border-color: rgba(0,0,0,0.18)`"
+              >
+                <span class="text-sm leading-none opacity-50 select-none">✎</span>
+              </div>
               <input
                 type="color"
                 :value="brandingForm[field.key] || '#000000'"
-                class="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 @input="(e) => { brandingForm[field.key] = (e.target as HTMLInputElement).value }"
               />
-              <input
-                v-model="brandingForm[field.key]"
-                maxlength="7"
-                placeholder="#000000"
-                class="flex-1 text-sm rounded-lg px-2 py-2 border focus:outline-none font-mono"
-                style="background: var(--color-bg); border-color: var(--color-border); color: var(--color-text-primary)"
-              />
-            </div>
+            </label>
+            <!-- Narrow hex input -->
+            <input
+              v-model="brandingForm[field.key]"
+              maxlength="7"
+              placeholder="#000000"
+              class="w-28 text-xs rounded px-2 py-1.5 border font-mono focus:outline-none"
+              style="background: var(--color-bg); border-color: var(--color-border); color: var(--color-text-primary)"
+            />
           </div>
         </div>
         <div class="flex gap-3 justify-end pt-2">
@@ -631,13 +813,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChevronRight, Pencil } from '@lucide/vue'
+import { ChevronRight, Pencil, Copy, Check } from '@lucide/vue'
+import QRCode from 'qrcode'
+
 import {
   getLeague, getLeagueTeams, createTeam,
   getLeagueSettings, updateLeagueSettings,
   getStandings, updateTeamBranding,
+  regenerateInviteCode, sendEmailInvites, sendSmsInvites,
 } from '@/api/leagues'
 import { useAuthStore } from '@/stores/auth'
 import AppSpinner from '@/components/ui/AppSpinner.vue'
@@ -645,6 +830,35 @@ import AppCard from '@/components/ui/AppCard.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppEmptyState from '@/components/ui/AppEmptyState.vue'
+import TeamHelmet from '@/components/leagues/TeamHelmet.vue'
+
+const PRESET_LOGOS = [
+  { id: 'dragon',    emoji: '🐉', label: 'Dragon'    },
+  { id: 'crown',     emoji: '👑', label: 'Crown'     },
+  { id: 'fire',      emoji: '🔥', label: 'Fire'      },
+  { id: 'lightning', emoji: '⚡', label: 'Lightning' },
+  { id: 'swords',    emoji: '⚔️', label: 'Swords'    },
+  { id: 'shield',    emoji: '🛡️', label: 'Shield'    },
+  { id: 'skull',     emoji: '💀', label: 'Skull'     },
+  { id: 'star',      emoji: '⭐', label: 'Star'      },
+  { id: 'rocket',    emoji: '🚀', label: 'Rocket'    },
+  { id: 'wolf',      emoji: '🐺', label: 'Wolf'      },
+  { id: 'eagle',     emoji: '🦅', label: 'Eagle'     },
+  { id: 'bear',      emoji: '🐻', label: 'Bear'      },
+  { id: 'lion',      emoji: '🦁', label: 'Lion'      },
+  { id: 'shark',     emoji: '🦈', label: 'Shark'     },
+  { id: 'gem',       emoji: '💎', label: 'Diamond'   },
+  { id: 'thunder',   emoji: '🌩️', label: 'Thunder'   },
+  { id: 'dagger',    emoji: '🗡️', label: 'Dagger'    },
+  { id: 'trophy',    emoji: '🏆', label: 'Trophy'    },
+  { id: 'bull',      emoji: '🐂', label: 'Bull'      },
+  { id: 'hawk',      emoji: '🦆', label: 'Hawk'      },
+]
+
+function emojiLogoUri(emoji: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${emoji}</text></svg>`
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
 
 const DRAFT_TYPES: Record<number, string> = { 1: 'Snake', 2: 'Auction', 3: 'Linear', 4: 'Random Per Round' }
 const WAIVER_TYPES: Record<number, string> = { 1: 'Rolling Priority', 2: 'Reverse Standings', 3: 'FAAB' }
@@ -681,7 +895,7 @@ const league = ref<any>(null)
 const teams = ref<any[]>([])
 const settings = ref<any>(null)
 const standings = ref<any[]>([])
-const activeTab = ref<'teams' | 'standings' | 'settings'>('teams')
+const activeTab = ref<'teams' | 'standings' | 'settings' | 'invite'>('teams')
 
 // Add team
 const showAddTeam = ref(false)
@@ -699,8 +913,61 @@ const showBrandingModal = ref(false)
 const brandingTeamId = ref<string | null>(null)
 const brandingForm = ref<Record<string, any>>({})
 const savingBranding = ref(false)
+const logoMode = ref<'url' | 'upload' | 'choose'>('url')
 
 const isCommissioner = computed(() => league.value?.created_by === authStore.user?.id)
+
+// Invite tab state
+
+const qrCanvas = ref<HTMLCanvasElement | null>(null)
+const codeCopied = ref(false)
+const urlCopied = ref(false)
+const regenerating = ref(false)
+
+const joinUrl = computed(() =>
+  league.value?.invite_code
+    ? `${window.location.origin}/leagues/join/${league.value.invite_code}`
+    : ''
+)
+
+const canSendInvites = computed(() => {
+  if (!league.value) return false
+  const scope = league.value.available_scope_id
+  if (scope === 1) return isCommissioner.value
+  return true
+})
+
+const defaultEmailMessage = computed(() => {
+  if (!league.value) return ''
+  return `Hey! You've been invited to join ${league.value.name} on our fantasy football platform!\n\nUse invite code: ${league.value.invite_code}\nOr join directly: ${joinUrl.value}\n\nCan't wait to compete with you this season!`
+})
+
+const defaultSmsMessage = computed(() => {
+  if (!league.value) return ''
+  return `Join ${league.value.name} on fantasy football! Code: ${league.value.invite_code} — ${joinUrl.value}`
+})
+
+const emailRecipients = ref('')
+const emailMessage = ref('')
+const sendingEmails = ref(false)
+const emailStatus = ref<{ ok: boolean; msg: string } | null>(null)
+
+const smsRecipients = ref('')
+const smsMessage = ref('')
+const sendingSms = ref(false)
+const smsStatus = ref<{ ok: boolean; msg: string } | null>(null)
+
+watch(activeTab, (tab) => {
+  if (tab === 'invite') {
+    if (!emailMessage.value) emailMessage.value = defaultEmailMessage.value
+    if (!smsMessage.value) smsMessage.value = defaultSmsMessage.value
+    setTimeout(() => {
+      if (qrCanvas.value && joinUrl.value) {
+        QRCode.toCanvas(qrCanvas.value, joinUrl.value, { width: 120, margin: 1 })
+      }
+    }, 50)
+  }
+})
 
 onMounted(async () => {
   try {
@@ -732,9 +999,67 @@ async function onStandingsTab() {
 }
 
 async function handleTabChange(tab: string) {
-  activeTab.value = tab as 'teams' | 'standings' | 'settings'
+  activeTab.value = tab as 'teams' | 'standings' | 'settings' | 'invite'
   if (tab === 'settings') await onSettingsTab()
   if (tab === 'standings') await onStandingsTab()
+}
+
+function copyCode() {
+  if (!league.value?.invite_code) return
+  navigator.clipboard.writeText(league.value.invite_code)
+  codeCopied.value = true
+  setTimeout(() => { codeCopied.value = false }, 2000)
+}
+
+function copyUrl() {
+  navigator.clipboard.writeText(joinUrl.value)
+  urlCopied.value = true
+  setTimeout(() => { urlCopied.value = false }, 2000)
+}
+
+async function doRegenerateCode() {
+  regenerating.value = true
+  try {
+    const result = await regenerateInviteCode(leagueId)
+    if (league.value) league.value.invite_code = result.invite_code
+    if (qrCanvas.value && joinUrl.value) {
+      await QRCode.toCanvas(qrCanvas.value, `${window.location.origin}/leagues/join/${result.invite_code}`, { width: 120, margin: 1 })
+    }
+  } finally {
+    regenerating.value = false
+  }
+}
+
+async function sendEmails() {
+  const recipients = emailRecipients.value.split('\n').map(s => s.trim()).filter(Boolean)
+  if (!recipients.length) return
+  sendingEmails.value = true
+  emailStatus.value = null
+  try {
+    await sendEmailInvites(leagueId, recipients, emailMessage.value)
+    emailStatus.value = { ok: true, msg: `Sent to ${recipients.length} recipient(s).` }
+    emailRecipients.value = ''
+  } catch (err: any) {
+    emailStatus.value = { ok: false, msg: err?.response?.data?.detail ?? 'Failed to send emails.' }
+  } finally {
+    sendingEmails.value = false
+  }
+}
+
+async function sendSms() {
+  const recipients = smsRecipients.value.split('\n').map(s => s.trim()).filter(Boolean)
+  if (!recipients.length) return
+  sendingSms.value = true
+  smsStatus.value = null
+  try {
+    await sendSmsInvites(leagueId, recipients, smsMessage.value)
+    smsStatus.value = { ok: true, msg: `Sent to ${recipients.length} recipient(s).` }
+    smsRecipients.value = ''
+  } catch (err: any) {
+    smsStatus.value = { ok: false, msg: err?.response?.data?.detail ?? 'Failed to send SMS.' }
+  } finally {
+    sendingSms.value = false
+  }
 }
 
 function startEdit(section: string) {
@@ -777,7 +1102,20 @@ function openBrandingEdit(team: any) {
     secondary_color_1: team.secondary_color_1 ?? '',
     secondary_color_2: team.secondary_color_2 ?? '',
   }
+  logoMode.value = 'url'
   showBrandingModal.value = true
+}
+
+function onLogoFileChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) {
+    alert('Image must be under 2 MB')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (evt) => { brandingForm.value.logo_url = evt.target?.result as string }
+  reader.readAsDataURL(file)
 }
 
 async function saveBranding() {

@@ -10,10 +10,14 @@ from user_api.dependencies import UserContext, get_current_user, get_pool
 from user_api.models.leagues import (
     DraftPickCreate,
     DraftPickResponse,
+    InviteEmailRequest,
+    InviteSmsRequest,
     LeagueCreate,
     LeagueDraftSettings,
+    LeagueJoinRequest,
     LeagueKeeperSettings,
     LeaguePlayoffSettings,
+    LeaguePublicResponse,
     LeagueResponse,
     LeagueRosterConfig,
     LeagueScoringSettings,
@@ -41,6 +45,7 @@ from user_api.models.leagues import (
     TransactionCreate,
     TransactionResponse,
 )
+from user_api.services.notify_service import send_email, send_sms
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/leagues", tags=["leagues"])
@@ -85,6 +90,57 @@ async def create_league(
     match = next((r for r in rows if r["id"] == league_id), None)
     if not match:
         raise HTTPException(status_code=500, detail="League creation failed")
+    return LeagueResponse(**dict(match))
+
+
+# NOTE: /join routes MUST be registered before /{league_id} to prevent FastAPI
+# treating the literal "join" as a UUID path parameter.
+
+@router.get("/join/{invite_code}", response_model=LeaguePublicResponse)
+async def get_league_by_invite_code(
+    invite_code: str,
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    """Public endpoint — no auth required. Returns league preview for the join page."""
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM user_api.fn_get_league_by_invite_code($1)", invite_code.upper()
+        )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Invalid invite code")
+    return LeaguePublicResponse(**dict(rows[0]))
+
+
+@router.post("/join/{invite_code}", response_model=LeagueResponse, status_code=status.HTTP_201_CREATED)
+async def join_league(
+    invite_code: str,
+    body: LeagueJoinRequest,
+    current_user: UserContext = Depends(get_current_user),
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    """Join a league using an invite code. Creates a team and adds the caller as an owner."""
+    async with pool.acquire() as conn:
+        league_row = await conn.fetchrow(
+            "SELECT id, available_scope_id FROM user_api.leagues WHERE invite_code = $1",
+            invite_code.upper(),
+        )
+        if not league_row:
+            raise HTTPException(status_code=404, detail="Invalid invite code")
+
+        league_id = league_row["id"]
+
+        # Create team and add owner
+        team_id = await conn.fetchval(
+            "SELECT user_api.usp_create_league_team($1, $2, $3)",
+            league_id, current_user.user_id, body.team_name,
+        )
+
+        rows = await conn.fetch(
+            "SELECT * FROM user_api.fn_get_user_leagues($1)", current_user.user_id
+        )
+    match = next((r for r in rows if r["id"] == league_id), None)
+    if not match:
+        raise HTTPException(status_code=500, detail="Failed to retrieve league after joining")
     return LeagueResponse(**dict(match))
 
 
@@ -367,7 +423,17 @@ async def get_team(
     match = next((r for r in rows if r["id"] == team_id), None)
     if not match:
         raise HTTPException(status_code=404, detail="Team not found")
-    return LeagueTeamResponse(**dict(match), league_id=league_id)
+
+    team_dict = dict(match)
+
+    # Fetch owners
+    async with pool.acquire() as conn:
+        owner_rows = await conn.fetch(
+            "SELECT * FROM user_api.fn_get_team_owners($1)", team_id
+        )
+    team_dict["owners"] = [dict(row) for row in owner_rows]
+
+    return LeagueTeamResponse(**team_dict, league_id=league_id)
 
 
 @router.patch("/{league_id}/teams/{team_id}", response_model=LeagueTeamResponse)
@@ -391,7 +457,17 @@ async def rename_team(
     match = next((r for r in rows if r["id"] == team_id), None)
     if not match:
         raise HTTPException(status_code=404, detail="Team not found")
-    return LeagueTeamResponse(**dict(match), league_id=league_id)
+
+    team_dict = dict(match)
+
+    # Fetch owners
+    async with pool.acquire() as conn:
+        owner_rows = await conn.fetch(
+            "SELECT * FROM user_api.fn_get_team_owners($1)", team_id
+        )
+    team_dict["owners"] = [dict(row) for row in owner_rows]
+
+    return LeagueTeamResponse(**team_dict, league_id=league_id)
 
 
 @router.patch("/{league_id}/teams/{team_id}/branding", response_model=LeagueTeamResponse)
@@ -914,6 +990,84 @@ async def record_draft_pick(
             "SELECT * FROM user_api.league_draft_picks WHERE id = $1", pick_id
         )
     return DraftPickResponse(**dict(row))
+
+
+# ---------------------------------------------------------------------------
+# Invite system
+# ---------------------------------------------------------------------------
+
+@router.post("/{league_id}/invite-code/regenerate")
+async def regenerate_invite_code(
+    league_id: UUID,
+    current_user: UserContext = Depends(get_current_user),
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    """Commissioner-only: generate a new invite code, invalidating the old one."""
+    async with pool.acquire() as conn:
+        league = await conn.fetchrow(
+            "SELECT created_by FROM user_api.leagues WHERE id = $1", league_id
+        )
+        if not league:
+            raise HTTPException(status_code=404, detail="League not found")
+        if league["created_by"] != current_user.user_id:
+            raise HTTPException(status_code=403, detail="Only the commissioner can regenerate the invite code")
+        await conn.execute(
+            "CALL user_api.usp_regenerate_invite_code($1)", league_id
+        )
+        row = await conn.fetchrow(
+            "SELECT invite_code FROM user_api.leagues WHERE id = $1", league_id
+        )
+    return {"invite_code": row["invite_code"]}
+
+
+@router.post("/{league_id}/invite/email")
+async def send_email_invites(
+    league_id: UUID,
+    body: InviteEmailRequest,
+    current_user: UserContext = Depends(get_current_user),
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    async with pool.acquire() as conn:
+        league = await conn.fetchrow(
+            "SELECT name, invite_code, available_scope_id, created_by FROM user_api.leagues WHERE id = $1",
+            league_id,
+        )
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+
+    scope = league["available_scope_id"]
+    if scope == 1 and league["created_by"] != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Only the commissioner can send invites for this league")
+
+    join_url = f"/leagues/join/{league['invite_code']}"
+    subject = f"You're invited to join {league['name']}!"
+    html_body = body.message.replace("\n", "<br>")
+
+    await send_email(pool, [str(r) for r in body.recipients], subject, html_body)
+    return {"status": "sent", "count": len(body.recipients)}
+
+
+@router.post("/{league_id}/invite/sms")
+async def send_sms_invites(
+    league_id: UUID,
+    body: InviteSmsRequest,
+    current_user: UserContext = Depends(get_current_user),
+    pool: asyncpg.Pool = Depends(get_pool),
+):
+    async with pool.acquire() as conn:
+        league = await conn.fetchrow(
+            "SELECT name, invite_code, available_scope_id, created_by FROM user_api.leagues WHERE id = $1",
+            league_id,
+        )
+    if not league:
+        raise HTTPException(status_code=404, detail="League not found")
+
+    scope = league["available_scope_id"]
+    if scope == 1 and league["created_by"] != current_user.user_id:
+        raise HTTPException(status_code=403, detail="Only the commissioner can send invites for this league")
+
+    await send_sms(pool, body.recipients, body.message)
+    return {"status": "sent", "count": len(body.recipients)}
 
 
 # ---------------------------------------------------------------------------

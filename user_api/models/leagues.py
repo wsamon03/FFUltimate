@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 # ---------------------------------------------------------------------------
@@ -30,6 +30,7 @@ class LeagueResponse(BaseModel):
     available_scope_name: str
     season_year: int
     max_teams: int
+    invite_code: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -141,6 +142,15 @@ class TeamBrandingUpdate(BaseModel):
     secondary_color_2: str | None = Field(None, max_length=7)
 
 
+class TeamOwner(BaseModel):
+    user_id: UUID
+    email: str
+    display_name: str | None = None
+    is_commissioner: bool
+    user_display_name: str | None = None
+    is_email_displayed: bool = False
+
+
 class LeagueTeamResponse(BaseModel):
     id: UUID
     league_id: UUID
@@ -154,6 +164,7 @@ class LeagueTeamResponse(BaseModel):
     created_by_id: UUID
     created_at: datetime
     owner_count: int = 0
+    owners: list[TeamOwner] = []
 
 
 # ---------------------------------------------------------------------------
@@ -373,3 +384,31 @@ class LineupPlayerResponse(BaseModel):
     nfl_team_abbr: str | None
     slot_position: str
     set_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Invite system
+# ---------------------------------------------------------------------------
+
+class LeaguePublicResponse(BaseModel):
+    id: UUID
+    name: str
+    description: str | None
+    league_type_name: str
+    season_year: int
+    max_teams: int
+    team_count: int
+
+
+class LeagueJoinRequest(BaseModel):
+    team_name: str = Field("My Team", min_length=1, max_length=100)
+
+
+class InviteEmailRequest(BaseModel):
+    recipients: list[EmailStr]
+    message: str = Field(..., min_length=1)
+
+
+class InviteSmsRequest(BaseModel):
+    recipients: list[str]
+    message: str = Field(..., min_length=1)
