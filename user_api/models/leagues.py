@@ -412,3 +412,80 @@ class InviteEmailRequest(BaseModel):
 class InviteSmsRequest(BaseModel):
     recipients: list[str]
     message: str = Field(..., min_length=1)
+
+
+# ---------------------------------------------------------------------------
+# Draft Room
+# ---------------------------------------------------------------------------
+
+class DraftStateResponse(BaseModel):
+    state_id: UUID | None = None
+    status: str
+    current_pick: int
+    total_picks: int
+    pick_started_at: datetime | None = None
+    paused_seconds_left: int | None = None
+    seconds_per_pick: int
+    third_round_reversal: bool
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    state_hash: str
+
+
+class DraftOrderEntry(BaseModel):
+    slot_position: int
+    league_team_id: UUID
+    team_name: str
+
+
+class DraftOrderSet(BaseModel):
+    team_ids: list[UUID]
+
+
+class DraftPickRoomEntry(BaseModel):
+    pick_number: int
+    round_number: int
+    pick_in_round: int
+    league_team_id: UUID
+    player_id: UUID | None = None
+    player_name: str | None = None
+    position_code: str | None = None
+    team_abbr: str | None = None
+    drafted_at: datetime | None = None
+
+
+class DraftRoomResponse(BaseModel):
+    state: DraftStateResponse | None = None
+    order: list[DraftOrderEntry] = []
+    picks: list[DraftPickRoomEntry] = []
+
+
+class StartDraftRequest(BaseModel):
+    draft_year: int
+
+
+class MakePickRequest(BaseModel):
+    draft_year: int
+    pick_number: int
+    player_id: UUID
+
+
+class DraftQueueSet(BaseModel):
+    player_ids: list[UUID]
+
+
+class AvailablePlayerEntry(BaseModel):
+    player_id: UUID
+    espn_id: str | None = None
+    name: str
+    position_code: str | None = None
+    team_abbr: str | None = None
+    team_name: str | None = None
+
+
+class DraftQueueEntry(BaseModel):
+    player_id: UUID
+    player_name: str | None = None
+    position_code: str | None = None
+    team_abbr: str | None = None
+    priority: int

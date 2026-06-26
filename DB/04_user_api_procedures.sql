@@ -120,17 +120,47 @@ $$ LANGUAGE plpgsql;
 -- LEAGUES
 -- ---------------------------------------------------------------------------
 
--- Create a league. Returns new league UUID.
-CREATE OR REPLACE FUNCTION user_api.usp_create_league(
-    p_name       VARCHAR(150),
-    p_created_by UUID
+-- Create a league and seed all settings tables with defaults. Returns new league UUID.
+-- Dropping before recreate because the signature changed.
+DROP FUNCTION IF EXISTS user_api.usp_create_league(VARCHAR, UUID);
+DROP FUNCTION IF EXISTS user_api.usp_create_league(VARCHAR, UUID, TEXT, SMALLINT, SMALLINT, INT, INT);
+
+CREATE FUNCTION user_api.usp_create_league(
+    p_name                VARCHAR(150),
+    p_created_by          UUID,
+    p_description         TEXT        DEFAULT NULL,
+    p_league_type_id      SMALLINT    DEFAULT 1,
+    p_available_scope_id  SMALLINT    DEFAULT 1,
+    p_season_year         INT         DEFAULT NULL,
+    p_max_teams           INT         DEFAULT 12
 ) RETURNS UUID AS $$
 DECLARE
     v_league_id UUID;
+    v_year      INT := COALESCE(p_season_year, EXTRACT(YEAR FROM NOW())::INT);
+    v_code      VARCHAR(12);
+    v_attempts  INT := 0;
 BEGIN
-    INSERT INTO user_api.leagues (name, created_by)
-    VALUES (p_name, p_created_by)
+    LOOP
+        v_code := upper(substr(md5(gen_random_uuid()::text || random()::text), 1, 8));
+        EXIT WHEN NOT EXISTS (SELECT 1 FROM user_api.leagues WHERE invite_code = v_code);
+        v_attempts := v_attempts + 1;
+        IF v_attempts > 20 THEN RAISE EXCEPTION 'Could not generate unique invite code'; END IF;
+    END LOOP;
+
+    INSERT INTO user_api.leagues
+        (name, created_by, description, league_type_id, available_scope_id, season_year, max_teams, invite_code)
+    VALUES
+        (p_name, p_created_by, p_description, p_league_type_id, p_available_scope_id, v_year, p_max_teams, v_code)
     RETURNING id INTO v_league_id;
+
+    -- Seed all settings tables with defaults so every league always has settings rows
+    INSERT INTO user_api.league_scoring          (league_id, league_year) VALUES (v_league_id, v_year);
+    INSERT INTO user_api.league_roster_config    (league_id, league_year) VALUES (v_league_id, v_year);
+    INSERT INTO user_api.league_draft_settings   (league_id, league_year) VALUES (v_league_id, v_year);
+    INSERT INTO user_api.league_waiver_settings  (league_id, league_year) VALUES (v_league_id, v_year);
+    INSERT INTO user_api.league_trade_settings   (league_id, league_year) VALUES (v_league_id, v_year);
+    INSERT INTO user_api.league_playoff_settings (league_id, league_year) VALUES (v_league_id, v_year);
+    INSERT INTO user_api.league_keeper_settings  (league_id, league_year) VALUES (v_league_id, v_year);
 
     RETURN v_league_id;
 END;
@@ -178,41 +208,139 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ---------------------------------------------------------------------------
+-- OWNERSHIP CONSTRAINT TRIGGERS
+-- ---------------------------------------------------------------------------
+
+-- Trigger function: prevent deletion of the last active owner from a team.
+CREATE OR REPLACE FUNCTION user_api.fn_check_min_one_owner()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_remaining INT;
+BEGIN
+    SELECT COUNT(*) INTO v_remaining
+    FROM user_api.league_team_owners
+    WHERE league_team_id = OLD.league_team_id
+      AND is_active = TRUE
+      AND id != OLD.id;
+
+    IF v_remaining = 0 THEN
+        RAISE EXCEPTION 'A team must have at least one owner. Cannot remove the last owner.';
+    END IF;
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_min_one_owner ON user_api.league_team_owners;
+CREATE TRIGGER trg_min_one_owner
+BEFORE DELETE ON user_api.league_team_owners
+FOR EACH ROW EXECUTE FUNCTION user_api.fn_check_min_one_owner();
+
+
+-- Trigger function: prevent a user from owning more than one team in the same league.
+-- The league creator (leagues.created_by) is exempt.
+CREATE OR REPLACE FUNCTION user_api.fn_check_one_team_per_league()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_league_id       UUID;
+    v_is_commissioner BOOLEAN;
+    v_existing_count  INT;
+BEGIN
+    SELECT lt.league_id INTO v_league_id
+    FROM user_api.league_teams lt
+    WHERE lt.id = NEW.league_team_id;
+
+    SELECT (l.created_by = NEW.user_id) INTO v_is_commissioner
+    FROM user_api.leagues l
+    WHERE l.id = v_league_id;
+
+    IF COALESCE(v_is_commissioner, FALSE) THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT COUNT(*) INTO v_existing_count
+    FROM user_api.league_team_owners lto
+    JOIN user_api.league_teams lt ON lt.id = lto.league_team_id
+    WHERE lt.league_id = v_league_id
+      AND lto.user_id = NEW.user_id
+      AND lto.league_team_id != NEW.league_team_id
+      AND lto.is_active = TRUE;
+
+    IF v_existing_count > 0 THEN
+        RAISE EXCEPTION 'User already owns a team in this league. Each user may only own one team per league.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_one_team_per_league ON user_api.league_team_owners;
+CREATE TRIGGER trg_one_team_per_league
+BEFORE INSERT ON user_api.league_team_owners
+FOR EACH ROW EXECUTE FUNCTION user_api.fn_check_one_team_per_league();
+
+-- ---------------------------------------------------------------------------
 -- READ FUNCTIONS
 -- ---------------------------------------------------------------------------
 
 -- All leagues a user participates in (as creator or as an owner of any team).
-CREATE OR REPLACE FUNCTION user_api.fn_get_user_leagues(p_user_id UUID)
+-- Return type changed (added invite_code) — must drop before recreate.
+DROP FUNCTION IF EXISTS user_api.fn_get_user_leagues(UUID);
+
+CREATE FUNCTION user_api.fn_get_user_leagues(p_user_id UUID)
 RETURNS TABLE (
-    id          UUID,
-    name        VARCHAR,
-    created_by  UUID,
-    created_at  TIMESTAMP,
-    team_count  BIGINT
+    id                    UUID,
+    name                  VARCHAR,
+    description           TEXT,
+    created_by            UUID,
+    created_at            TIMESTAMP,
+    team_count            BIGINT,
+    league_type_id        SMALLINT,
+    league_type_name      VARCHAR,
+    available_scope_id    SMALLINT,
+    available_scope_name  VARCHAR,
+    season_year           INT,
+    max_teams             INT,
+    invite_code           VARCHAR
 ) AS $$
 BEGIN
     RETURN QUERY
     SELECT
         l.id,
         l.name,
+        l.description,
         l.created_by,
         l.created_at,
-        COUNT(DISTINCT lt.id) AS team_count
+        COUNT(DISTINCT lt.id)::BIGINT   AS team_count,
+        l.league_type_id,
+        lt_lk.name::VARCHAR             AS league_type_name,
+        l.available_scope_id,
+        scope_lk.name::VARCHAR          AS available_scope_name,
+        l.season_year,
+        l.max_teams,
+        l.invite_code::VARCHAR
     FROM user_api.leagues l
-    LEFT JOIN user_api.league_teams lt ON lt.league_id = l.id
+    JOIN user_api.lk_league_types      lt_lk    ON lt_lk.id    = l.league_type_id
+    JOIN user_api.lk_available_scopes  scope_lk ON scope_lk.id = l.available_scope_id
+    LEFT JOIN user_api.league_teams    lt  ON lt.league_id = l.id
     LEFT JOIN user_api.league_team_owners lto ON lto.league_team_id = lt.id AND lto.is_active = TRUE
     WHERE l.created_by = p_user_id
-       OR lto.user_id = p_user_id
-    GROUP BY l.id, l.name, l.created_by, l.created_at
+       OR lto.user_id  = p_user_id
+    GROUP BY l.id, l.name, l.description, l.created_by, l.created_at,
+             l.league_type_id, lt_lk.name,
+             l.available_scope_id, scope_lk.name,
+             l.season_year, l.max_teams, l.invite_code
     ORDER BY l.created_at DESC;
 END;
 $$ LANGUAGE plpgsql;
 
 -- All teams in a league with owner summary.
-CREATE OR REPLACE FUNCTION user_api.fn_get_league_teams(p_league_id UUID)
+DROP FUNCTION IF EXISTS user_api.fn_get_league_teams(UUID);
+
+CREATE FUNCTION user_api.fn_get_league_teams(p_league_id UUID)
 RETURNS TABLE (
-    team_id         UUID,
-    team_name       VARCHAR,
+    id              UUID,
+    name            VARCHAR,
     created_by_id   UUID,
     created_at      TIMESTAMP,
     owner_count     BIGINT

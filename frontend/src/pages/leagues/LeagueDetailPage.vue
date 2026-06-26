@@ -18,7 +18,12 @@
             <span>{{ league.available_scope_name }}</span>
           </div>
         </div>
-        <AppButton v-if="activeTab === 'teams'" @click="showAddTeam = true">Add Team</AppButton>
+        <div class="flex items-center gap-2">
+          <RouterLink :to="`/leagues/${leagueId}/draft`">
+            <AppButton variant="secondary">Enter Draft Room</AppButton>
+          </RouterLink>
+          <AppButton v-if="activeTab === 'teams'" @click="showAddTeam = true">Add Team</AppButton>
+        </div>
       </div>
 
       <!-- Tabs -->

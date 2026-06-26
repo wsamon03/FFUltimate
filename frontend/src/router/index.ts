@@ -9,6 +9,9 @@ const router = createRouter({
     { path: '/register', component: () => import('@/pages/RegisterPage.vue') },
     { path: '/auth/callback', component: () => import('@/pages/AuthCallbackPage.vue') },
 
+    // Public league join (no auth required)
+    { path: '/leagues/join/:code', component: () => import('@/pages/leagues/LeagueJoinPage.vue') },
+
     // Authenticated shell
     {
       path: '/',
@@ -22,6 +25,7 @@ const router = createRouter({
         { path: 'leagues', component: () => import('@/pages/leagues/LeaguesPage.vue') },
         { path: 'leagues/:id', component: () => import('@/pages/leagues/LeagueDetailPage.vue') },
         { path: 'leagues/:id/teams/:teamId', component: () => import('@/pages/leagues/TeamDetailPage.vue') },
+        { path: 'leagues/:id/draft', component: () => import('@/pages/leagues/DraftPage.vue') },
 
         // NFL
         { path: 'nfl', component: () => import('@/pages/nfl/NflPage.vue') },

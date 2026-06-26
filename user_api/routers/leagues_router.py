@@ -8,8 +8,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from user_api.dependencies import UserContext, get_current_user, get_pool
 from user_api.models.leagues import (
+    AvailablePlayerEntry,
+    DraftOrderEntry,
+    DraftOrderSet,
     DraftPickCreate,
     DraftPickResponse,
+    DraftPickRoomEntry,
+    DraftQueueEntry,
+    DraftQueueSet,
+    DraftRoomResponse,
+    DraftStateResponse,
     InviteEmailRequest,
     InviteSmsRequest,
     LeagueCreate,
@@ -30,6 +38,7 @@ from user_api.models.leagues import (
     LeagueWaiverSettings,
     LineupPlayerResponse,
     LineupSlot,
+    MakePickRequest,
     MatchupCreate,
     MatchupResponse,
     MatchupUpdate,
@@ -39,6 +48,7 @@ from user_api.models.leagues import (
     RosterPlayerAdd,
     RosterPlayerResponse,
     StandingsEntry,
+    StartDraftRequest,
     TeamBrandingUpdate,
     TeamSeasonStatsResponse,
     TeamSeasonStatsUpdate,
@@ -121,13 +131,32 @@ async def join_league(
     """Join a league using an invite code. Creates a team and adds the caller as an owner."""
     async with pool.acquire() as conn:
         league_row = await conn.fetchrow(
-            "SELECT id, available_scope_id FROM user_api.leagues WHERE invite_code = $1",
+            "SELECT id, available_scope_id, created_by FROM user_api.leagues WHERE invite_code = $1",
             invite_code.upper(),
         )
         if not league_row:
             raise HTTPException(status_code=404, detail="Invalid invite code")
 
         league_id = league_row["id"]
+
+        # Non-commissioners may only own one team per league
+        if league_row["created_by"] != current_user.user_id:
+            existing = await conn.fetchval(
+                """
+                SELECT COUNT(*)
+                FROM user_api.league_team_owners lto
+                JOIN user_api.league_teams lt ON lt.id = lto.league_team_id
+                WHERE lt.league_id = $1
+                  AND lto.user_id = $2
+                  AND lto.is_active = TRUE
+                """,
+                league_id, current_user.user_id,
+            )
+            if existing > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="You already own a team in this league",
+                )
 
         # Create team and add owner
         team_id = await conn.fetchval(
@@ -527,6 +556,29 @@ async def add_owner(
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
+        # Non-commissioners may only own one team per league
+        league_creator = await conn.fetchval(
+            "SELECT created_by FROM user_api.leagues WHERE id = $1", league_id
+        )
+        if league_creator != body.user_id:
+            existing = await conn.fetchval(
+                """
+                SELECT COUNT(*)
+                FROM user_api.league_team_owners lto
+                JOIN user_api.league_teams lt ON lt.id = lto.league_team_id
+                WHERE lt.league_id = $1
+                  AND lto.user_id = $2
+                  AND lto.league_team_id != $3
+                  AND lto.is_active = TRUE
+                """,
+                league_id, body.user_id, team_id,
+            )
+            if existing > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="This user already owns a team in this league",
+                )
+
         await conn.execute(
             "CALL user_api.usp_add_league_team_owner($1, $2, $3, $4, $5)",
             team_id,
@@ -584,6 +636,16 @@ async def remove_owner(
     pool: asyncpg.Pool = Depends(get_pool),
 ):
     async with pool.acquire() as conn:
+        active_count = await conn.fetchval(
+            "SELECT COUNT(*) FROM user_api.league_team_owners WHERE league_team_id = $1 AND is_active = TRUE",
+            team_id,
+        )
+        if active_count <= 1:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot remove the last owner from a team. A team must have at least one owner.",
+            )
+
         result = await conn.execute(
             "DELETE FROM user_api.league_team_owners WHERE league_team_id = $1 AND user_id = $2",
             team_id,
@@ -1068,6 +1130,308 @@ async def send_sms_invites(
 
     await send_sms(pool, body.recipients, body.message)
     return {"status": "sent", "count": len(body.recipients)}
+
+
+# ---------------------------------------------------------------------------
+# Draft Room
+# ---------------------------------------------------------------------------
+
+async def _assert_commissioner(conn: asyncpg.Connection, league_id: UUID, user_id: UUID) -> None:
+    row = await conn.fetchrow(
+        """SELECT 1 FROM user_api.league_team_owners lto
+           JOIN user_api.league_teams lt ON lt.id = lto.league_team_id
+           WHERE lt.league_id = $1 AND lto.user_id = $2 AND lto.is_commissioner = TRUE
+           LIMIT 1""",
+        league_id, user_id,
+    )
+    if not row:
+        raise HTTPException(status_code=403, detail="Commissioner only")
+
+
+@router.get("/{league_id}/draft/room", response_model=DraftRoomResponse)
+async def get_draft_room(
+    league_id: UUID,
+    draft_year: int,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    """Polling endpoint — returns full draft state, order, and picks in one call."""
+    import json as _json
+    async with pool.acquire() as conn:
+        raw = await conn.fetchval(
+            "SELECT user_api.fn_get_draft_room($1, $2)",
+            league_id, draft_year,
+        )
+    if not raw:
+        return DraftRoomResponse()
+    data = _json.loads(raw)
+    return DraftRoomResponse(**data)
+
+
+@router.get("/{league_id}/draft/order", response_model=list[DraftOrderEntry])
+async def get_draft_order(
+    league_id: UUID,
+    draft_year: int,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT slot_position, league_team_id, lt.name AS team_name
+               FROM user_api.league_draft_order do_
+               JOIN user_api.league_teams lt ON lt.id = do_.league_team_id
+               WHERE do_.league_id = $1 AND do_.draft_year = $2
+               ORDER BY slot_position""",
+            league_id, draft_year,
+        )
+    return [DraftOrderEntry(**dict(r)) for r in rows]
+
+
+@router.put("/{league_id}/draft/order", status_code=204)
+async def set_draft_order(
+    league_id: UUID,
+    draft_year: int,
+    body: DraftOrderSet,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    async with pool.acquire() as conn:
+        await _assert_commissioner(conn, league_id, current_user.user_id)
+        await conn.execute(
+            "SELECT user_api.usp_set_draft_order($1, $2, $3)",
+            league_id, draft_year, [str(tid) for tid in body.team_ids],
+        )
+
+
+@router.post("/{league_id}/draft/randomize-order", response_model=list[DraftOrderEntry])
+async def randomize_draft_order(
+    league_id: UUID,
+    draft_year: int,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    import random as _random
+    async with pool.acquire() as conn:
+        await _assert_commissioner(conn, league_id, current_user.user_id)
+        teams = await conn.fetch(
+            "SELECT id FROM user_api.league_teams WHERE league_id = $1", league_id
+        )
+        team_ids = [str(r["id"]) for r in teams]
+        _random.shuffle(team_ids)
+        await conn.execute(
+            "SELECT user_api.usp_set_draft_order($1, $2, $3)",
+            league_id, draft_year, team_ids,
+        )
+        rows = await conn.fetch(
+            """SELECT slot_position, league_team_id, lt.name AS team_name
+               FROM user_api.league_draft_order do_
+               JOIN user_api.league_teams lt ON lt.id = do_.league_team_id
+               WHERE do_.league_id = $1 AND do_.draft_year = $2
+               ORDER BY slot_position""",
+            league_id, draft_year,
+        )
+    return [DraftOrderEntry(**dict(r)) for r in rows]
+
+
+@router.post("/{league_id}/draft/start")
+async def start_draft(
+    league_id: UUID,
+    body: StartDraftRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    async with pool.acquire() as conn:
+        await _assert_commissioner(conn, league_id, current_user.user_id)
+        try:
+            state_id = await conn.fetchval(
+                "SELECT user_api.usp_start_draft($1, $2)",
+                league_id, body.draft_year,
+            )
+        except asyncpg.exceptions.RaiseError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+    return {"state_id": str(state_id)}
+
+
+@router.post("/{league_id}/draft/pause", status_code=204)
+async def pause_draft(
+    league_id: UUID,
+    draft_year: int,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    async with pool.acquire() as conn:
+        await _assert_commissioner(conn, league_id, current_user.user_id)
+        await conn.execute(
+            "SELECT user_api.usp_pause_draft($1, $2)", league_id, draft_year
+        )
+
+
+@router.post("/{league_id}/draft/resume", status_code=204)
+async def resume_draft(
+    league_id: UUID,
+    draft_year: int,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    async with pool.acquire() as conn:
+        await _assert_commissioner(conn, league_id, current_user.user_id)
+        await conn.execute(
+            "SELECT user_api.usp_resume_draft($1, $2)", league_id, draft_year
+        )
+
+
+@router.post("/{league_id}/draft/pick")
+async def make_pick(
+    league_id: UUID,
+    body: MakePickRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    async with pool.acquire() as conn:
+        # Resolve this user's team in the league
+        team_row = await conn.fetchrow(
+            """SELECT lt.id FROM user_api.league_teams lt
+               JOIN user_api.league_team_owners lto ON lto.league_team_id = lt.id
+               WHERE lt.league_id = $1 AND lto.user_id = $2
+               LIMIT 1""",
+            league_id, current_user.user_id,
+        )
+        acting_team = team_row["id"] if team_row else None
+
+        # Commissioners may pick for any team (pass NULL to skip turn validation)
+        is_comm = await conn.fetchrow(
+            """SELECT 1 FROM user_api.league_team_owners lto
+               JOIN user_api.league_teams lt ON lt.id = lto.league_team_id
+               WHERE lt.league_id = $1 AND lto.user_id = $2 AND lto.is_commissioner = TRUE
+               LIMIT 1""",
+            league_id, current_user.user_id,
+        )
+
+        try:
+            row = await conn.fetchrow(
+                "SELECT * FROM user_api.usp_make_pick($1,$2,$3,$4,$5)",
+                league_id, body.draft_year, body.pick_number,
+                body.player_id,
+                None if is_comm else acting_team,
+            )
+        except asyncpg.exceptions.RaiseError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    return {
+        "new_pick_number": row["new_pick_number"],
+        "draft_completed": row["draft_completed"],
+        "state_hash": row["state_hash"],
+    }
+
+
+@router.post("/{league_id}/draft/autopick")
+async def autopick(
+    league_id: UUID,
+    draft_year: int,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    """Called by the client when the pick timer expires."""
+    async with pool.acquire() as conn:
+        # Verify timer actually expired on server side
+        state = await conn.fetchrow(
+            """SELECT ds.current_pick, ds.pick_started_at, ds.status,
+                      COALESCE(lds.seconds_per_pick, 90) AS seconds_per_pick,
+                      COALESCE(lds.autopick_enabled, TRUE) AS autopick_enabled
+               FROM user_api.league_draft_state ds
+               LEFT JOIN user_api.league_draft_settings lds
+                   ON lds.league_id = ds.league_id AND lds.league_year = ds.draft_year
+               WHERE ds.league_id = $1 AND ds.draft_year = $2""",
+            league_id, draft_year,
+        )
+        if not state or state["status"] != "active":
+            raise HTTPException(status_code=400, detail="Draft is not active")
+
+        if not state["autopick_enabled"]:
+            raise HTTPException(status_code=400, detail="Autopick is disabled for this league")
+
+        try:
+            row = await conn.fetchrow(
+                "SELECT * FROM user_api.usp_autopick($1, $2)",
+                league_id, draft_year,
+            )
+        except asyncpg.exceptions.RaiseError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+
+    return {
+        "new_pick_number": row["new_pick_number"],
+        "draft_completed": row["draft_completed"],
+        "state_hash": row["state_hash"],
+        "player_picked": str(row["player_picked"]),
+    }
+
+
+@router.get("/{league_id}/draft/available-players", response_model=list[AvailablePlayerEntry])
+async def get_available_players(
+    league_id: UUID,
+    draft_year: int,
+    name: str | None = None,
+    position: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "SELECT * FROM user_api.fn_get_draft_available_players($1,$2,$3,$4,$5,$6)",
+            league_id, draft_year, name, position, limit, offset,
+        )
+    return [AvailablePlayerEntry(**dict(r)) for r in rows]
+
+
+@router.get("/{league_id}/draft/queue/{team_id}", response_model=list[DraftQueueEntry])
+async def get_draft_queue(
+    league_id: UUID,
+    team_id: UUID,
+    draft_year: int,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """SELECT q.player_id, p.name AS player_name, p.position_code,
+                      t.abbr AS team_abbr, q.priority
+               FROM user_api.league_draft_queue q
+               JOIN public.players p ON p.id = q.player_id
+               LEFT JOIN public.teams t ON t.id = p.team_id
+               WHERE q.league_id = $1 AND q.draft_year = $2 AND q.league_team_id = $3
+               ORDER BY q.priority""",
+            league_id, draft_year, team_id,
+        )
+    return [DraftQueueEntry(**dict(r)) for r in rows]
+
+
+@router.put("/{league_id}/draft/queue/{team_id}", status_code=204)
+async def set_draft_queue(
+    league_id: UUID,
+    team_id: UUID,
+    draft_year: int,
+    body: DraftQueueSet,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: UserContext = Depends(get_current_user),
+):
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                """DELETE FROM user_api.league_draft_queue
+                   WHERE league_id = $1 AND draft_year = $2 AND league_team_id = $3""",
+                league_id, draft_year, team_id,
+            )
+            for i, player_id in enumerate(body.player_ids, start=1):
+                await conn.execute(
+                    """INSERT INTO user_api.league_draft_queue
+                       (league_id, draft_year, league_team_id, player_id, priority)
+                       VALUES ($1,$2,$3,$4,$5)
+                       ON CONFLICT (league_id, draft_year, league_team_id, player_id)
+                       DO UPDATE SET priority = EXCLUDED.priority""",
+                    league_id, draft_year, team_id, player_id, i,
+                )
 
 
 # ---------------------------------------------------------------------------

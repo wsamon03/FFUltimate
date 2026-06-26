@@ -271,6 +271,149 @@ export async function logTransaction(
   return data
 }
 
+// Invite system
+export async function getLeagueByCode(code: string) {
+  const { data } = await apiClient.get(`/api/leagues/join/${encodeURIComponent(code)}`)
+  return data
+}
+
+export async function joinLeague(code: string, teamName: string) {
+  const { data } = await apiClient.post(`/api/leagues/join/${encodeURIComponent(code)}`, {
+    team_name: teamName,
+  })
+  return data
+}
+
+export async function regenerateInviteCode(leagueId: string) {
+  const { data } = await apiClient.post(`/api/leagues/${leagueId}/invite-code/regenerate`)
+  return data
+}
+
+export async function sendEmailInvites(leagueId: string, recipients: string[], message: string) {
+  const { data } = await apiClient.post(`/api/leagues/${leagueId}/invite/email`, {
+    recipients,
+    message,
+  })
+  return data
+}
+
+export async function sendSmsInvites(leagueId: string, recipients: string[], message: string) {
+  const { data } = await apiClient.post(`/api/leagues/${leagueId}/invite/sms`, {
+    recipients,
+    message,
+  })
+  return data
+}
+
+// Draft Room
+export async function getDraftRoom(leagueId: string, draftYear: number) {
+  const { data } = await apiClient.get(`/api/leagues/${leagueId}/draft/room`, {
+    params: { draft_year: draftYear },
+  })
+  return data
+}
+
+export async function getDraftOrder(leagueId: string, draftYear: number) {
+  const { data } = await apiClient.get(`/api/leagues/${leagueId}/draft/order`, {
+    params: { draft_year: draftYear },
+  })
+  return data
+}
+
+export async function setDraftOrder(leagueId: string, draftYear: number, teamIds: string[]) {
+  await apiClient.put(
+    `/api/leagues/${leagueId}/draft/order`,
+    { team_ids: teamIds },
+    { params: { draft_year: draftYear } },
+  )
+}
+
+export async function randomizeDraftOrder(leagueId: string, draftYear: number) {
+  const { data } = await apiClient.post(
+    `/api/leagues/${leagueId}/draft/randomize-order`,
+    {},
+    { params: { draft_year: draftYear } },
+  )
+  return data
+}
+
+export async function startDraft(leagueId: string, draftYear: number) {
+  const { data } = await apiClient.post(`/api/leagues/${leagueId}/draft/start`, {
+    draft_year: draftYear,
+  })
+  return data
+}
+
+export async function pauseDraft(leagueId: string, draftYear: number) {
+  await apiClient.post(
+    `/api/leagues/${leagueId}/draft/pause`,
+    {},
+    { params: { draft_year: draftYear } },
+  )
+}
+
+export async function resumeDraft(leagueId: string, draftYear: number) {
+  await apiClient.post(
+    `/api/leagues/${leagueId}/draft/resume`,
+    {},
+    { params: { draft_year: draftYear } },
+  )
+}
+
+export async function makeDraftPick(
+  leagueId: string,
+  draftYear: number,
+  pickNumber: number,
+  playerId: string,
+) {
+  const { data } = await apiClient.post(`/api/leagues/${leagueId}/draft/pick`, {
+    draft_year: draftYear,
+    pick_number: pickNumber,
+    player_id: playerId,
+  })
+  return data
+}
+
+export async function autopick(leagueId: string, draftYear: number) {
+  const { data } = await apiClient.post(
+    `/api/leagues/${leagueId}/draft/autopick`,
+    {},
+    { params: { draft_year: draftYear } },
+  )
+  return data
+}
+
+export async function getAvailablePlayers(
+  leagueId: string,
+  draftYear: number,
+  params: { name?: string; position?: string; limit?: number; offset?: number } = {},
+) {
+  const { data } = await apiClient.get(`/api/leagues/${leagueId}/draft/available-players`, {
+    params: { draft_year: draftYear, ...params },
+  })
+  return data
+}
+
+export async function getDraftQueue(leagueId: string, teamId: string, draftYear: number) {
+  const { data } = await apiClient.get(`/api/leagues/${leagueId}/draft/queue/${teamId}`, {
+    params: { draft_year: draftYear },
+  })
+  return data
+}
+
+export async function setDraftQueue(
+  leagueId: string,
+  teamId: string,
+  draftYear: number,
+  playerIds: string[],
+) {
+  await apiClient.put(
+    `/api/leagues/${leagueId}/draft/queue/${teamId}`,
+    { player_ids: playerIds },
+    { params: { draft_year: draftYear } },
+  )
+}
+
 // Draft Picks
 export async function listDraftPicks(leagueId: string, draftYear?: number) {
   const params: Record<string, number> = {}
