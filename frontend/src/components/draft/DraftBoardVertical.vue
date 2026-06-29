@@ -179,6 +179,7 @@ watch(
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
 }
 .board-header {
   display: flex;
@@ -216,7 +217,7 @@ watch(
 .btn-full-board:hover { background: var(--color-surface, #0f172a); }
 
 .picks-viewport {
-  height: 220px; /* 5 rows × 44px each */
+  flex: 1;
   overflow-y: auto;
   display: flex;
   flex-direction: column;

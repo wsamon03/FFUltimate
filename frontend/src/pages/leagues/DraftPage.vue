@@ -27,7 +27,6 @@
         </div>
 
         <div class="status-right">
-          <!-- Commissioner controls -->
           <template v-if="isCommissioner">
             <button
               v-if="!draftState || draftState.status === 'pending'"
@@ -52,7 +51,7 @@
         </div>
       </div>
 
-      <!-- Pending: show order setup for commissioner -->
+      <!-- Pending state -->
       <div v-if="!draftState || draftState.status === 'pending'" class="pending-layout">
         <div v-if="isCommissioner" class="order-setup-card">
           <DraftOrderSetup
@@ -67,22 +66,32 @@
         </div>
       </div>
 
-      <!-- Active / paused / completed: three-panel layout -->
+      <!-- Active / paused / completed layout -->
       <div v-else class="draft-layout">
-        <!-- Left: Draft Board -->
-        <div class="panel panel-board">
-          <div class="panel-title">Draft Board</div>
-          <DraftBoard
-            :order="draftStore.order"
-            :picks="draftStore.picks"
-            :current-pick="draftState?.current_pick ?? 0"
-            :my-team-id="myTeamId"
-          />
+        <!-- Left column: Queue (top 1/3) + My Team (bottom 2/3) -->
+        <div class="panel-left">
+          <div class="panel-queue">
+            <div class="panel-title">My Queue</div>
+            <div class="queue-body">
+              <DraftQueue
+                ref="queueRef"
+                :league-id="leagueId"
+                :team-id="myTeamId"
+                :draft-year="draftYear"
+              />
+            </div>
+          </div>
+          <div class="panel-myteam">
+            <div class="panel-title">My Team</div>
+            <MyTeamPanel
+              :picks="draftStore.picks"
+              :team-id="myTeamId"
+            />
+          </div>
         </div>
 
-        <!-- Center: Available Players -->
-        <div class="panel panel-available">
-          <div class="panel-title">Available Players</div>
+        <!-- Center column: Available Players -->
+        <div class="panel-center">
           <AvailablePlayersPanel
             :league-id="leagueId"
             :draft-year="draftYear"
@@ -93,18 +102,47 @@
           />
         </div>
 
-        <!-- Right: My Team + Queue -->
-        <div class="panel panel-myteam">
-          <MyTeamPanel
-            ref="myTeamPanelRef"
-            :picks="draftStore.picks"
-            :team-id="myTeamId"
-            :league-id="leagueId"
-            :draft-year="draftYear"
-          />
+        <!-- Right column: Draft Board (top) + resizer + Chat (bottom) -->
+        <div ref="panelRightRef" class="panel-right">
+          <div class="panel-board" :style="{ height: boardHeight + 'px' }">
+            <DraftBoardVertical
+              :order="draftStore.order"
+              :picks="draftStore.picks"
+              :current-pick="draftState?.current_pick ?? 0"
+              :my-team-id="myTeamId"
+              @show-full-board="showFullBoard = true"
+            />
+          </div>
+          <div class="panel-resizer" @mousedown="startResize" />
+          <div class="panel-chat">
+            <DraftChat :display-name="displayName" />
+          </div>
         </div>
       </div>
     </template>
+
+    <!-- Full board overlay (no backdrop — page stays interactive around it) -->
+    <Teleport to="body">
+      <div
+        v-if="showFullBoard"
+        class="overlay-board"
+        :style="overlayStyle"
+        @mousedown="startDrag"
+      >
+        <div class="overlay-header">
+          <span class="overlay-title">Full Draft Board</span>
+          <button class="overlay-close" @click="showFullBoard = false">✕</button>
+        </div>
+        <div class="overlay-board-body">
+          <DraftBoard
+            :order="draftStore.order"
+            :picks="draftStore.picks"
+            :current-pick="draftState?.current_pick ?? 0"
+            :my-team-id="myTeamId"
+          />
+        </div>
+      </div>
+    </Teleport>
 
     <!-- Pick confirmation modal -->
     <AppModal v-model="showPickModal">
@@ -128,7 +166,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 
-import { getLeague, getLeagueTeams, startDraft, pauseDraft, resumeDraft } from '@/api/leagues'
+import { getLeague, getLeagueTeams, startDraft } from '@/api/leagues'
 import { useDraftStore } from '@/stores/useDraftStore'
 import { useAuthStore } from '@/stores/auth'
 
@@ -136,10 +174,13 @@ import AppSpinner from '@/components/ui/AppSpinner.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import DraftTimer from '@/components/draft/DraftTimer.vue'
 import DraftBoard from '@/components/draft/DraftBoard.vue'
+import DraftBoardVertical from '@/components/draft/DraftBoardVertical.vue'
 import AvailablePlayersPanel from '@/components/draft/AvailablePlayersPanel.vue'
 import MyTeamPanel from '@/components/draft/MyTeamPanel.vue'
 import DraftOrderSetup from '@/components/draft/DraftOrderSetup.vue'
 import PlayerDraftCard from '@/components/draft/PlayerDraftCard.vue'
+import DraftQueue from '@/components/draft/DraftQueue.vue'
+import DraftChat from '@/components/draft/DraftChat.vue'
 
 const route = useRoute()
 const leagueId = route.params.id as string
@@ -153,23 +194,88 @@ const leagueName = ref('')
 const teams = ref<any[]>([])
 const myTeamId = ref('')
 const isCommissioner = ref(false)
+const displayName = ref('')
 const ctrlLoading = ref(false)
 const ctrlError = ref('')
 
-// Pick confirm
 const showPickModal = ref(false)
 const pendingPlayer = ref<any>(null)
 const pickLoading = ref(false)
 const pickError = ref('')
 
-const myTeamPanelRef = ref<InstanceType<typeof MyTeamPanel> | null>(null)
+const showFullBoard = ref(false)
+
+// Right panel resizer (board vs chat)
+const PICK_ROW_HEIGHT = 44
+const BOARD_HEADER_HEIGHT = 38
+const MIN_BOARD_ROWS = 1
+const INITIAL_BOARD_ROWS = 5
+const boardHeight = ref(BOARD_HEADER_HEIGHT + INITIAL_BOARD_ROWS * PICK_ROW_HEIGHT) // 258px
+const panelRightRef = ref<HTMLElement | null>(null)
+let resizing = false
+let resizeStartY = 0
+let resizeStartH = 0
+
+function startResize(e: MouseEvent) {
+  resizing = true
+  resizeStartY = e.clientY
+  resizeStartH = boardHeight.value
+  window.addEventListener('mousemove', onResize)
+  window.addEventListener('mouseup', stopResize)
+  e.preventDefault()
+}
+function onResize(e: MouseEvent) {
+  if (!resizing) return
+  const delta = e.clientY - resizeStartY
+  const panelH = panelRightRef.value?.clientHeight ?? 600
+  const minH = BOARD_HEADER_HEIGHT + MIN_BOARD_ROWS * PICK_ROW_HEIGHT
+  const maxH = panelH - 60 // always leave ≥60px for chat
+  boardHeight.value = Math.max(minH, Math.min(maxH, resizeStartH + delta))
+}
+function stopResize() {
+  resizing = false
+  window.removeEventListener('mousemove', onResize)
+  window.removeEventListener('mouseup', stopResize)
+}
+
+// Draggable overlay state
+const overlayPos = ref({ x: 80, y: 60 })
+let dragging = false
+let dragStart = { mx: 0, my: 0, ox: 0, oy: 0 }
+
+const overlayStyle = computed(() => ({
+  left: `${overlayPos.value.x}px`,
+  top: `${overlayPos.value.y}px`,
+}))
+
+function startDrag(e: MouseEvent) {
+  const target = e.target as HTMLElement
+  if (target.closest('.overlay-close')) return
+  dragging = true
+  dragStart = { mx: e.clientX, my: e.clientY, ox: overlayPos.value.x, oy: overlayPos.value.y }
+  window.addEventListener('mousemove', onDrag)
+  window.addEventListener('mouseup', stopDrag)
+}
+function onDrag(e: MouseEvent) {
+  if (!dragging) return
+  overlayPos.value = {
+    x: dragStart.ox + e.clientX - dragStart.mx,
+    y: dragStart.oy + e.clientY - dragStart.my,
+  }
+}
+function stopDrag() {
+  dragging = false
+  window.removeEventListener('mousemove', onDrag)
+  window.removeEventListener('mouseup', stopDrag)
+}
+
+const queueRef = ref<InstanceType<typeof DraftQueue> | null>(null)
 
 const draftState = computed(() => draftStore.state)
 
 const currentRound = computed(() => {
   if (!draftState.value || !draftStore.order.length) return 1
-  const n = draftStore.order.length
-  return Math.ceil(draftState.value.current_pick / n)
+  return Math.ceil(draftState.value.current_pick / draftStore.order.length)
 })
 
 onMounted(async () => {
@@ -182,9 +288,9 @@ onMounted(async () => {
     teams.value = teamList
     isCommissioner.value = league.created_by === auth.user?.id
 
-    // Find this user's team via created_by_id
     const mine = teamList.find((t: any) => t.created_by_id === auth.user?.id)
     myTeamId.value = mine?.id ?? ''
+    displayName.value = auth.user?.email ?? 'You'
   } finally {
     loading.value = false
   }
@@ -194,6 +300,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   draftStore.stopPolling()
+  stopDrag()
+  stopResize()
 })
 
 function openPickConfirm(player: any) {
@@ -218,7 +326,7 @@ async function confirmPick() {
 }
 
 function addToQueue(player: any) {
-  myTeamPanelRef.value?.addToQueue(player)
+  queueRef.value?.addPlayer(player)
 }
 
 async function handleStart() {
@@ -263,7 +371,7 @@ async function handleResume() {
 .draft-page {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 4rem);
+  height: 100vh;
   overflow: hidden;
 }
 
@@ -273,7 +381,7 @@ async function handleResume() {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.5rem 1rem;
+  padding: 0.45rem 1rem;
   background: var(--color-surface, #0f172a);
   border-bottom: 1px solid var(--color-border, #334155);
   flex-shrink: 0;
@@ -298,10 +406,9 @@ async function handleResume() {
 }
 @keyframes pulse-badge { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 .status-right { display: flex; align-items: center; gap: 0.5rem; }
-
 .btn-ctrl {
-  padding: 0.35rem 0.9rem;
-  border-radius: 0.375rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 0.35rem;
   border: none;
   cursor: pointer;
   font-weight: 700;
@@ -313,7 +420,7 @@ async function handleResume() {
 .btn-resume { background: #22c55e; color: #fff; }
 .ctrl-error { font-size: 0.75rem; color: #ef4444; }
 
-/* Pending layout */
+/* Pending */
 .pending-layout {
   flex: 1;
   display: flex;
@@ -332,34 +439,124 @@ async function handleResume() {
 }
 .pending-msg { padding: 2rem; text-align: center; }
 
-/* Three-panel layout */
+/* Main three-column layout */
 .draft-layout {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 320px 240px;
-  gap: 0;
+  grid-template-columns: 240px 1fr 300px;
   overflow: hidden;
   min-height: 0;
 }
-.panel {
+
+/* Left column */
+.panel-left {
+  display: grid;
+  grid-template-rows: 1fr 2fr;
+  overflow: hidden;
+  border-right: 1px solid var(--color-border, #334155);
+}
+.panel-queue {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-bottom: 1px solid var(--color-border, #334155);
+}
+.panel-myteam {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Center column */
+.panel-center {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border-right: 1px solid var(--color-border, #334155);
-  padding: 0.5rem;
 }
-.panel:last-child { border-right: none; }
+
+/* Right column */
+.panel-right {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.panel-board {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.panel-resizer {
+  height: 5px;
+  background: var(--color-border, #334155);
+  cursor: ns-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.panel-resizer:hover,
+.panel-resizer:active {
+  background: var(--color-primary, #6366f1);
+}
+.panel-chat {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex: 1;
+  min-height: 60px;
+}
+
+/* Shared panel title */
 .panel-title {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-muted, #94a3b8);
-  padding: 0.25rem 0.25rem 0.5rem;
+  padding: 0.4rem 0.5rem;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border, #334155);
+}
+.queue-body { flex: 1; overflow: hidden; }
+
+/* Full board overlay — no backdrop so the rest of the page remains interactive */
+.overlay-board {
+  position: fixed;
+  z-index: 200;
+  width: 80vw;
+  height: 60vh;
+  background: var(--color-surface, #0f172a);
+  border: 1px solid var(--color-border, #334155);
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: move;
+  user-select: none;
+}
+.overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface-alt, #1e293b);
+  border-bottom: 1px solid var(--color-border, #334155);
   flex-shrink: 0;
 }
+.overlay-title { font-weight: 700; font-size: 0.875rem; }
+.overlay-close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #94a3b8);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.1rem 0.25rem;
+}
+.overlay-close:hover { color: var(--color-text, #e2e8f0); }
+.overlay-board-body { flex: 1; overflow: auto; cursor: default; }
 
-/* Modal confirm */
+/* Pick confirm modal */
 .confirm-body { display: flex; flex-direction: column; gap: 1rem; }
 .confirm-label { font-size: 0.9rem; color: var(--color-text, #e2e8f0); }
 .confirm-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
