@@ -84,7 +84,7 @@
               <span class="pos-badge" :style="{ background: posColor(player.position_code) }">
                 {{ player.position_code ?? '?' }}
               </span>
-              <span class="player-name">{{ player.name }}</span>
+              <button class="player-name-btn" @click="cardPlayerId = player.player_id">{{ player.name }}</button>
             </td>
             <td class="align-center td-team">{{ player.team_abbr ?? '—' }}</td>
             <td
@@ -106,6 +106,12 @@
       @update:per-page="perPage = $event; currentPage = 1"
     />
   </div>
+
+  <PlayerCardModal
+    :visible="cardPlayerId !== null"
+    :player-id="cardPlayerId"
+    @close="cardPlayerId = null"
+  />
 </template>
 
 <script setup lang="ts">
@@ -113,6 +119,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { getAvailablePlayers } from '@/api/leagues'
 import { getPlayerSeasonStats } from '@/api/stats'
 import AppPagination from '@/components/ui/AppPagination.vue'
+import PlayerCardModal from './PlayerCardModal.vue'
 
 const POSITIONS = ['ALL', 'QB', 'RB', 'WR', 'TE', 'K', 'DST']
 
@@ -269,6 +276,7 @@ const players = ref<any[]>([])
 const loading = ref(false)
 const activePosition = ref('ALL')
 const statType = ref('offense')
+const cardPlayerId = ref<string | null>(null)
 const searchText = ref('')
 const sortColumn = ref<string>('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
@@ -649,12 +657,23 @@ tbody .player-row:hover .col-sticky-name { background: var(--color-surface-alt, 
   color: #fff;
   flex-shrink: 0;
 }
-.player-name {
+.player-name-btn {
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 140px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-text, #e2e8f0);
+  cursor: pointer;
+  font-size: inherit;
+  text-align: left;
+}
+.player-name-btn:hover {
+  color: var(--color-primary, #6366f1);
+  text-decoration: underline;
 }
 
 /* Action buttons */
