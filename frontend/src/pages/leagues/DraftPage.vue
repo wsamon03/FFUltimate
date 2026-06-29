@@ -68,9 +68,9 @@
 
       <!-- Active / paused / completed layout -->
       <div v-else class="draft-layout">
-        <!-- Left column: Queue (top 1/3) + My Team (bottom 2/3) -->
-        <div class="panel-left">
-          <div class="panel-queue">
+        <!-- Left column: Queue (resizable top) + My Team (resizable bottom) -->
+        <div ref="panelLeftRef" class="panel-left">
+          <div class="panel-queue" :style="{ height: queueHeight + 'px' }">
             <div class="panel-title">My Queue</div>
             <div class="queue-body">
               <DraftQueue
@@ -81,6 +81,7 @@
               />
             </div>
           </div>
+          <div class="panel-left-resizer" @mousedown="startLeftResize" />
           <div class="panel-myteam">
             <div class="panel-title">My Team</div>
             <MyTeamPanel
@@ -205,6 +206,38 @@ const pickError = ref('')
 
 const showFullBoard = ref(false)
 
+// Left panel resizer (queue vs team)
+const PANEL_HEADER_HEIGHT = 38
+const MIN_SECTION_HEIGHT = 60
+const INITIAL_QUEUE_HEIGHT = 150
+const queueHeight = ref(INITIAL_QUEUE_HEIGHT)
+const panelLeftRef = ref<HTMLElement | null>(null)
+let leftResizing = false
+let leftResizeStartY = 0
+let leftResizeStartH = 0
+
+function startLeftResize(e: MouseEvent) {
+  leftResizing = true
+  leftResizeStartY = e.clientY
+  leftResizeStartH = queueHeight.value
+  window.addEventListener('mousemove', onLeftResize)
+  window.addEventListener('mouseup', stopLeftResize)
+  e.preventDefault()
+}
+function onLeftResize(e: MouseEvent) {
+  if (!leftResizing) return
+  const delta = e.clientY - leftResizeStartY
+  const panelH = panelLeftRef.value?.clientHeight ?? 600
+  const minH = MIN_SECTION_HEIGHT + PANEL_HEADER_HEIGHT
+  const maxH = panelH - MIN_SECTION_HEIGHT - PANEL_HEADER_HEIGHT - 5
+  queueHeight.value = Math.max(minH, Math.min(maxH, leftResizeStartH + delta))
+}
+function stopLeftResize() {
+  leftResizing = false
+  window.removeEventListener('mousemove', onLeftResize)
+  window.removeEventListener('mouseup', stopLeftResize)
+}
+
 // Right panel resizer (board vs chat)
 const PICK_ROW_HEIGHT = 44
 const BOARD_HEADER_HEIGHT = 38
@@ -302,6 +335,7 @@ onUnmounted(() => {
   draftStore.stopPolling()
   stopDrag()
   stopResize()
+  stopLeftResize()
 })
 
 function openPickConfirm(player: any) {
@@ -450,8 +484,8 @@ async function handleResume() {
 
 /* Left column */
 .panel-left {
-  display: grid;
-  grid-template-rows: 1fr 2fr;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-right: 1px solid var(--color-border, #334155);
 }
@@ -459,12 +493,25 @@ async function handleResume() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-bottom: 1px solid var(--color-border, #334155);
+  flex-shrink: 0;
+}
+.panel-left-resizer {
+  height: 5px;
+  background: var(--color-border, #334155);
+  cursor: ns-resize;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.panel-left-resizer:hover,
+.panel-left-resizer:active {
+  background: var(--color-primary, #6366f1);
 }
 .panel-myteam {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex: 1;
+  min-height: 60px;
 }
 
 /* Center column */
