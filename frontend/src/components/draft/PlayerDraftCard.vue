@@ -1,11 +1,11 @@
 <template>
   <div class="player-draft-card">
-    <span class="position-badge" :style="{ background: positionColor }">
+    <span v-if="showPosition" class="position-badge" :style="{ background: positionColor }">
       {{ player.position_code ?? '?' }}
     </span>
     <div class="player-info">
       <span class="player-name">{{ player.name ?? player.player_name }}</span>
-      <span class="player-meta">{{ player.team_abbr ?? '—' }}</span>
+      <span class="player-meta">{{ metaText ?? (player.team_abbr ?? '—') }}</span>
     </div>
   </div>
 </template>
@@ -13,14 +13,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   player: {
     name?: string
     player_name?: string
     position_code?: string | null
     team_abbr?: string | null
   }
-}>()
+  showPosition?: boolean
+  metaText?: string
+}>(), {
+  showPosition: true,
+})
 
 const POSITION_COLORS: Record<string, string> = {
   QB: '#ef4444',
